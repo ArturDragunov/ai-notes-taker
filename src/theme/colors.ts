@@ -1,0 +1,16 @@
+export const colors = {
+  ink: '#0B1F1C',
+  brand: '#0B3D38',
+  brandSoft: '#1A5C54',
+  mist: '#E8F1EF',
+  paper: '#F4F8F7',
+  foam: '#FBFEFD',
+  accent: '#D97706',
+  accentSoft: '#F59E0B',
+  danger: '#B42318',
+  muted: '#5B6F6B',
+  line: '#C9D9D5',
+  success: '#047857',
+  warning: '#B45309',
+  recording: '#DC2626',
+} as const;
