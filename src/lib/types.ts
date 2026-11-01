@@ -15,6 +15,8 @@ export type NoteStatus =
 
 export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'error' | 'skipped';
 
+export type ProcessStep = 'transcribing' | 'summarizing' | null;
+
 export type Note = {
   id: string;
   title: string;
@@ -27,6 +29,7 @@ export type Note = {
   durationMs: number;
   status: NoteStatus;
   processError: string | null;
+  processStep: ProcessStep;
   onedriveStatus: SyncStatus;
   notionStatus: SyncStatus;
   onedrivePath: string | null;

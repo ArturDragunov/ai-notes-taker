@@ -26,20 +26,38 @@ export async function listTodos(epicId: string): Promise<TodoItem[]> {
 
 export async function listAllTodos(opts?: {
   openOnly?: boolean;
+  epicIds?: string[];
 }): Promise<(TodoItem & { epicName: string })[]> {
   const db = await getDb();
-  const where = opts?.openOnly ? 'WHERE t.done = 0' : '';
+  const clauses: string[] = [];
+  const params: string[] = [];
+  if (opts?.openOnly) clauses.push('t.done = 0');
+  if (opts?.epicIds?.length) {
+    clauses.push(`t.epic_id IN (${opts.epicIds.map(() => '?').join(', ')})`);
+    params.push(...opts.epicIds);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const rows = await db.getAllAsync<Record<string, unknown>>(
     `SELECT t.*, e.name AS epic_name
      FROM todos t
      INNER JOIN epics e ON e.id = t.epic_id
      ${where}
      ORDER BY t.done ASC, e.name COLLATE NOCASE ASC, t.sort_order ASC, t.created_at ASC`,
+    params,
   );
   return rows.map((row) => ({
     ...mapTodo(row),
     epicName: String(row.epic_name ?? ''),
   }));
+}
+
+export async function countTodosForNote(noteId: string): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ c: number }>(
+    'SELECT COUNT(*) as c FROM todos WHERE source_note_id = ?',
+    [noteId],
+  );
+  return Number(row?.c ?? 0);
 }
 
 export async function addTodo(input: {

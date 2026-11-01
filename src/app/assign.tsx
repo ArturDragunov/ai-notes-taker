@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { BackButton } from '@/components/BackButton';
 import { BrandMark } from '@/components/BrandMark';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
@@ -17,8 +18,26 @@ import type { Epic } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
 
+function parseNoteIds(
+  noteId?: string | string[],
+  noteIds?: string | string[],
+): string[] {
+  const fromList = Array.isArray(noteIds)
+    ? noteIds
+    : noteIds
+      ? noteIds.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+  const fromSingle = Array.isArray(noteId)
+    ? noteId
+    : noteId
+      ? [noteId]
+      : [];
+  return [...new Set([...fromList, ...fromSingle])];
+}
+
 export default function AssignScreen() {
-  const { noteId } = useLocalSearchParams<{ noteId: string }>();
+  const params = useLocalSearchParams<{ noteId?: string; noteIds?: string }>();
+  const targets = parseNoteIds(params.noteId, params.noteIds);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [newName, setNewName] = useState('');
@@ -52,13 +71,18 @@ export default function AssignScreen() {
   }
 
   async function continuePipeline() {
-    if (!noteId) return;
+    if (!targets.length) {
+      setError('No note to assign.');
+      return;
+    }
     try {
       setBusy(true);
       setError(null);
-      await assignNoteEpics(noteId, selected);
-      await enqueueNoteProcessing(noteId);
-      router.replace({ pathname: '/note/[id]', params: { id: noteId } });
+      for (const id of targets) {
+        await assignNoteEpics(id, selected);
+        await enqueueNoteProcessing(id);
+      }
+      router.replace({ pathname: '/note/[id]', params: { id: targets[0] } });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -68,10 +92,12 @@ export default function AssignScreen() {
 
   return (
     <Screen scroll>
+      <BackButton fallbackHref="/" />
       <BrandMark />
       <Text style={styles.title}>Assign epics</Text>
       <Text style={styles.sub}>
         Pick one or more jobs this recording belongs to. Default is the first epic.
+        {targets.length > 1 ? ` Processing ${targets.length} imported notes.` : ''}
       </Text>
 
       <View style={styles.list}>
@@ -104,9 +130,9 @@ export default function AssignScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <PrimaryButton
-        label="Process note"
+        label={targets.length > 1 ? `Process ${targets.length} notes` : 'Process note'}
         loading={busy}
-        disabled={!selected.length}
+        disabled={!selected.length || !targets.length}
         onPress={() => void continuePipeline()}
         style={{ marginTop: 18 }}
       />

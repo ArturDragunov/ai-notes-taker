@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import {
   useFonts,
   Fraunces_600SemiBold,
@@ -28,20 +29,31 @@ export function useAppBootstrap() {
   });
 
   useEffect(() => {
-    let unsub: (() => void) | undefined;
+    const unsubs: (() => void)[] = [];
     (async () => {
       try {
         await getDb();
         await ensureDefaultEpic();
-        unsub = NetInfo.addEventListener((state) => {
-          if (state.isConnected) void pumpQueue();
-        });
+        unsubs.push(
+          NetInfo.addEventListener((state) => {
+            if (state.isConnected) void pumpQueue();
+          }),
+        );
+        unsubs.push(
+          AppState.addEventListener('change', (next) => {
+            if (next === 'active') void pumpQueue();
+          }).remove,
+        );
+        // Keep draining the queue while the JS runtime is alive, even if the
+        // user leaves the note screen.
+        const tick = setInterval(() => void pumpQueue(), 4000);
+        unsubs.push(() => clearInterval(tick));
         void pumpQueue();
       } finally {
         setReady(true);
       }
     })();
-    return () => unsub?.();
+    return () => unsubs.forEach((u) => u());
   }, []);
 
   useEffect(() => {

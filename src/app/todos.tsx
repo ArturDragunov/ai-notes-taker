@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { BrandMark } from '@/components/BrandMark';
 import { NavRow } from '@/components/NavRow';
 import { Screen } from '@/components/Screen';
@@ -14,11 +14,17 @@ export default function TodosScreen() {
   const [todos, setTodos] = useState<(TodoItem & { epicName: string })[]>([]);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [showDone, setShowDone] = useState(false);
+  const [epicFilter, setEpicFilter] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setEpics(await listEpics());
-    setTodos(await listAllTodos({ openOnly: !showDone }));
-  }, [showDone]);
+    setTodos(
+      await listAllTodos({
+        openOnly: !showDone,
+        epicIds: epicFilter.length ? epicFilter : undefined,
+      }),
+    );
+  }, [showDone, epicFilter]);
 
   useFocusEffect(
     useCallback(() => {
@@ -31,13 +37,19 @@ export default function TodosScreen() {
     await load();
   }
 
+  function toggleEpicFilter(id: string) {
+    setEpicFilter((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  }
+
   return (
     <Screen scroll>
       <NavRow active="todos" />
       <BrandMark />
       <Text style={styles.title}>Todos</Text>
       <Text style={styles.sub}>
-        Open action items across epics. Tap a row to toggle; open an epic for the full checklist.
+        Open action items across epics. Filter by epic here — the list stays on this page.
       </Text>
 
       <View style={styles.filters}>
@@ -47,19 +59,29 @@ export default function TodosScreen() {
         <Pressable onPress={() => setShowDone(true)} style={[styles.chip, showDone && styles.chipOn]}>
           <Text style={[styles.chipText, showDone && styles.chipTextOn]}>Include done</Text>
         </Pressable>
+        {epicFilter.length ? (
+          <Pressable onPress={() => setEpicFilter([])} style={styles.chip}>
+            <Text style={styles.chipText}>Clear epics</Text>
+          </Pressable>
+        ) : null}
       </View>
 
-      <Text style={styles.section}>By epic</Text>
+      <Text style={styles.section}>Filter by epic</Text>
       <View style={styles.epicRow}>
-        {epics.map((epic) => (
-          <Pressable
-            key={epic.id}
-            onPress={() => router.push({ pathname: '/epic/[id]', params: { id: epic.id } })}
-            style={styles.epicChip}
-          >
-            <Text style={styles.epicChipText}>{epic.name}</Text>
-          </Pressable>
-        ))}
+        {epics.map((epic) => {
+          const on = epicFilter.includes(epic.id);
+          return (
+            <Pressable
+              key={epic.id}
+              onPress={() => toggleEpicFilter(epic.id)}
+              style={[styles.epicChip, on && styles.epicChipOn]}
+            >
+              <Text style={[styles.epicChipText, on && styles.epicChipTextOn]}>
+                {epic.name}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <Text style={styles.section}>Items</Text>
@@ -75,7 +97,7 @@ export default function TodosScreen() {
         ))}
         {!todos.length ? (
           <Text style={styles.empty}>
-            No open todos. Process a note with action items, or add one inside an epic.
+            No matching todos. Process a note, review proposed actions, then Add to Todos.
           </Text>
         ) : null}
       </View>
@@ -96,7 +118,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
     lineHeight: 22,
   },
-  filters: { flexDirection: 'row', gap: 8, marginTop: 18 },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -124,9 +146,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
+  epicChipOn: {
+    borderColor: colors.brand,
     backgroundColor: colors.brand,
   },
-  epicChipText: { fontFamily: fonts.bodyMed, color: '#fff' },
+  epicChipText: { fontFamily: fonts.bodyMed, color: colors.ink },
+  epicChipTextOn: { color: '#fff' },
   list: { gap: 12 },
   todo: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   box: {

@@ -15,13 +15,17 @@ import {
   syncTodosMarkdown,
 } from '@/services/onedrive';
 import { createOrUpdateNotionPage, isNotionConfigured } from '@/services/notion';
-import { importActionItemsFromNote, listTodos, todosToMarkdown } from '@/services/todos';
+import { listTodos, todosToMarkdown } from '@/services/todos';
 import { getEpic } from '@/services/epics';
 
 let pumping = false;
 
 export async function enqueueNoteProcessing(noteId: string): Promise<void> {
-  await updateNoteFields(noteId, { status: 'queued', processError: null });
+  await updateNoteFields(noteId, {
+    status: 'queued',
+    processError: null,
+    processStep: null,
+  });
   // Drop stale pending/failed process jobs for this note so Retry doesn't double-run.
   const { getDb } = await import('@/services/database');
   const db = await getDb();
@@ -113,7 +117,11 @@ async function processNote(noteId: string): Promise<void> {
   if (!note) throw new Error('Note not found');
   if (!note.audioPath) throw new Error('Note has no audio');
 
-  await updateNoteFields(noteId, { status: 'processing', processError: null });
+  await updateNoteFields(noteId, {
+    status: 'processing',
+    processError: null,
+    processStep: 'transcribing',
+  });
 
   try {
     const epics = await getNoteEpics(noteId);
@@ -121,6 +129,7 @@ async function processNote(noteId: string): Promise<void> {
       noteId,
       audioMs: note.durationMs,
     });
+    await updateNoteFields(noteId, { processStep: 'summarizing' });
     const structured = await structureNote(
       transcript,
       epics.map((e) => e.name),
@@ -145,16 +154,12 @@ async function processNote(noteId: string): Promise<void> {
       markdown,
       status: 'ready',
       processError: null,
+      processStep: null,
       // Local-first: Process succeeds without cloud destinations.
+      // Action items stay on the note until the user reviews and adds to Todos.
       onedriveStatus: 'skipped',
       notionStatus: 'skipped',
     });
-
-    await importActionItemsFromNote(
-      epics.map((e) => e.id),
-      noteId,
-      structured.actionItems,
-    );
 
     // Optional cloud sync — only when explicitly configured/connected.
     const oneDriveOk = await isOneDriveConnected();
@@ -175,7 +180,11 @@ async function processNote(noteId: string): Promise<void> {
     void pumpQueue();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await updateNoteFields(noteId, { status: 'error', processError: message });
+    await updateNoteFields(noteId, {
+      status: 'error',
+      processError: message,
+      processStep: null,
+    });
     throw err;
   }
 }
