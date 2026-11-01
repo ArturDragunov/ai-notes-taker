@@ -5,7 +5,8 @@ import { BrandMark } from '@/components/BrandMark';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { getNote, getNoteEpics } from '@/services/notes';
-import { pumpQueue } from '@/services/pipeline';
+import { shareNoteMarkdown } from '@/services/exportVault';
+import { pumpQueue, retryTranscribeNote } from '@/services/pipeline';
 import type { Epic, Note } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
@@ -14,6 +15,8 @@ export default function NoteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [note, setNote] = useState<Note | null>(null);
   const [epics, setEpics] = useState<Epic[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -30,6 +33,33 @@ export default function NoteScreen() {
     }, [load]),
   );
 
+  async function onRetry() {
+    if (!id) return;
+    try {
+      setBusy(true);
+      setMessage(null);
+      await retryTranscribeNote(id);
+      setMessage('Queued for transcription.');
+      await load();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onShare() {
+    if (!id) return;
+    try {
+      setBusy(true);
+      await shareNoteMarkdown(id);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!note) {
     return (
       <Screen>
@@ -38,6 +68,13 @@ export default function NoteScreen() {
     );
   }
 
+  const canRetry =
+    Boolean(note.audioPath) &&
+    (note.status === 'error' ||
+      note.status === 'queued' ||
+      note.status === 'processing' ||
+      note.status === 'ready');
+
   return (
     <Screen scroll>
       <BrandMark />
@@ -45,21 +82,44 @@ export default function NoteScreen() {
       <Text style={styles.meta}>
         {epics.map((e) => e.name).join(', ') || 'Epics pending'} · {note.status}
       </Text>
-      <Text style={styles.meta}>
-        OneDrive: {note.onedriveStatus}
-        {note.onedrivePath ? ` (${note.onedrivePath})` : ''} · Notion: {note.notionStatus}
-      </Text>
+      {(note.onedriveStatus !== 'skipped' || note.notionStatus !== 'skipped') && (
+        <Text style={styles.meta}>
+          OneDrive: {note.onedriveStatus}
+          {note.onedrivePath ? ` (${note.onedrivePath})` : ''} · Notion: {note.notionStatus}
+        </Text>
+      )}
 
       {note.processError ? <Text style={styles.error}>{note.processError}</Text> : null}
+      {message ? <Text style={styles.message}>{message}</Text> : null}
 
-      {note.status === 'queued' || note.status === 'processing' ? (
+      {canRetry ? (
         <View style={styles.banner}>
           <Text style={styles.bannerText}>
-            Transcribing and structuring offline-queued work. This continues when the network and API
-            key are available.
+            {note.status === 'error'
+              ? 'Transcription failed. Fix Settings if needed, then retry.'
+              : note.status === 'ready'
+                ? 'Re-run STT + structuring for this note.'
+                : 'Transcribing and structuring when network + API key are available. Notes stay local; cloud sync is optional.'}
           </Text>
-          <PrimaryButton label="Retry queue now" variant="ghost" onPress={() => void pumpQueue()} />
+          <PrimaryButton
+            label={note.status === 'ready' ? 'Re-transcribe' : 'Retry / Transcribe'}
+            loading={busy}
+            onPress={() => void onRetry()}
+          />
+          {(note.status === 'queued' || note.status === 'processing') && (
+            <PrimaryButton label="Retry queue now" variant="ghost" onPress={() => void pumpQueue()} />
+          )}
         </View>
+      ) : null}
+
+      {note.markdown || note.status === 'ready' ? (
+        <PrimaryButton
+          label="Share Markdown"
+          variant="ghost"
+          loading={busy}
+          onPress={() => void onShare()}
+          style={{ marginTop: 12 }}
+        />
       ) : null}
 
       {note.about ? (
@@ -116,6 +176,11 @@ const styles = StyleSheet.create({
   error: {
     marginTop: 12,
     color: colors.danger,
+    fontFamily: fonts.bodyMed,
+  },
+  message: {
+    marginTop: 10,
+    color: colors.brand,
     fontFamily: fonts.bodyMed,
   },
   banner: {

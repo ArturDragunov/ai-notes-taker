@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { BrandMark } from '@/components/BrandMark';
 import { NavRow } from '@/components/NavRow';
@@ -11,7 +11,13 @@ import {
   getRedirectUri,
   isOneDriveConnected,
 } from '@/services/onedrive';
-import { loadSettings, saveSettings } from '@/services/settings';
+import {
+  exportVaultToPickedFolder,
+  getLocalVaultUri,
+  shareVaultReadme,
+  writeLocalVault,
+} from '@/services/exportVault';
+import { loadSettings, saveSettings, SETTINGS_PLACEHOLDERS } from '@/services/settings';
 import type { AppSettings } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
@@ -21,6 +27,7 @@ import type { Epic } from '@/lib/types';
 export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [onedrive, setOnedrive] = useState(false);
+  const [showCloud, setShowCloud] = useState(false);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicName, setEpicName] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -28,9 +35,13 @@ export default function SettingsScreen() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    setSettings(await loadSettings());
+    const s = await loadSettings();
+    setSettings(s);
     setOnedrive(await isOneDriveConnected());
     setEpics(await listEpics());
+    if (s.azureClientId || s.notionToken || s.notionParentPageId) {
+      setShowCloud(true);
+    }
   }, []);
 
   useFocusEffect(
@@ -88,6 +99,47 @@ export default function SettingsScreen() {
     }
   }
 
+  async function onWriteVault() {
+    try {
+      setBusy(true);
+      setError(null);
+      const result = await writeLocalVault();
+      setMessage(
+        `Local vault ready (${result.noteCount} notes). Path: ${getLocalVaultUri()}`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onExportFolder() {
+    try {
+      setBusy(true);
+      setError(null);
+      const result = await exportVaultToPickedFolder();
+      setMessage(`Exported ${result.noteCount} notes to the folder you picked.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onShareVault() {
+    try {
+      setBusy(true);
+      setError(null);
+      await shareVaultReadme();
+      setMessage('Share sheet opened for the vault index Markdown.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!settings) {
     return (
       <Screen>
@@ -102,79 +154,106 @@ export default function SettingsScreen() {
       <BrandMark />
       <Text style={styles.title}>Settings</Text>
       <Text style={styles.sub}>
-        Point AI Notes at your OpenAI-compatible gateway, Microsoft Graph app, and Notion integration.
+        Notes stay on this phone. Add an STT key to Process; cloud sync and Obsidian export are
+        optional.
       </Text>
 
-      <Text style={styles.section}>AI (OpenAI-compatible)</Text>
+      <Text style={styles.section}>Speech-to-text</Text>
       <Field
-        label="Base URL"
+        label="STT base URL"
         value={settings.apiBaseUrl}
         onChangeText={(v) => patch('apiBaseUrl', v)}
+        placeholder={SETTINGS_PLACEHOLDERS.apiBaseUrl}
         autoCapitalize="none"
       />
       <Field
-        label="API key"
+        label="STT API key"
         value={settings.apiKey}
         onChangeText={(v) => patch('apiKey', v)}
         secure
         autoCapitalize="none"
+        placeholder="sk-…"
       />
       <Field
         label="STT model"
         value={settings.sttModel}
         onChangeText={(v) => patch('sttModel', v)}
+        placeholder={SETTINGS_PLACEHOLDERS.sttModel}
         autoCapitalize="none"
       />
+
+      <Text style={styles.section}>Language model</Text>
+      <View style={styles.toggleRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>Use different provider for LLM</Text>
+          <Text style={styles.help}>
+            Off = same base URL and key as STT (TokenRouter for chat, OpenRouter Whisper, etc.).
+          </Text>
+        </View>
+        <Switch
+          value={settings.useSeparateLlm}
+          onValueChange={(v) => patch('useSeparateLlm', v)}
+          trackColor={{ true: colors.brandSoft, false: colors.line }}
+          thumbColor={settings.useSeparateLlm ? colors.brand : '#f4f4f4'}
+        />
+      </View>
+
+      {settings.useSeparateLlm ? (
+        <>
+          <Field
+            label="LLM base URL"
+            value={settings.llmApiBaseUrl}
+            onChangeText={(v) => patch('llmApiBaseUrl', v)}
+            placeholder={SETTINGS_PLACEHOLDERS.llmApiBaseUrl}
+            autoCapitalize="none"
+          />
+          <Field
+            label="LLM API key"
+            value={settings.llmApiKey}
+            onChangeText={(v) => patch('llmApiKey', v)}
+            secure
+            autoCapitalize="none"
+            placeholder="sk-…"
+          />
+        </>
+      ) : null}
+
       <Field
         label="LLM model"
         value={settings.llmModel}
         onChangeText={(v) => patch('llmModel', v)}
+        placeholder={
+          settings.useSeparateLlm
+            ? SETTINGS_PLACEHOLDERS.llmModelSeparate
+            : SETTINGS_PLACEHOLDERS.llmModel
+        }
         autoCapitalize="none"
       />
 
-      <Text style={styles.section}>OneDrive (Microsoft Graph)</Text>
-      <Field
-        label="Azure application (client) ID"
-        value={settings.azureClientId}
-        onChangeText={(v) => patch('azureClientId', v)}
-        autoCapitalize="none"
-      />
-      <Field
-        label="Azure tenant ID (or common)"
-        value={settings.azureTenantId}
-        onChangeText={(v) => patch('azureTenantId', v)}
-        autoCapitalize="none"
-      />
-      <Text style={styles.help}>Redirect URI to register: {getRedirectUri()}</Text>
+      <Text style={styles.section}>Export / Sync notes</Text>
       <Text style={styles.help}>
-        Status: {onedrive ? 'Connected' : 'Not connected'}
+        Writes an Obsidian-friendly Markdown vault (Notes/epic-slug/…). Pick a public Documents or
+        vault folder, or share the index via the system sheet — not zip-only.
       </Text>
-      <View style={styles.row}>
-        {onedrive ? (
-          <PrimaryButton label="Disconnect" variant="ghost" onPress={() => void onDisconnectMs()} />
-        ) : (
-          <PrimaryButton label="Connect OneDrive" loading={busy} onPress={() => void onConnectMs()} />
-        )}
+      <View style={styles.stack}>
+        <PrimaryButton
+          label="Write local vault"
+          variant="ghost"
+          loading={busy}
+          onPress={() => void onWriteVault()}
+        />
+        <PrimaryButton
+          label="Export to folder…"
+          loading={busy}
+          onPress={() => void onExportFolder()}
+        />
+        <PrimaryButton
+          label="Share vault index"
+          variant="ghost"
+          loading={busy}
+          onPress={() => void onShareVault()}
+        />
       </View>
-
-      <Text style={styles.section}>Notion</Text>
-      <Field
-        label="Integration token"
-        value={settings.notionToken}
-        onChangeText={(v) => patch('notionToken', v)}
-        secure
-        autoCapitalize="none"
-      />
-      <Field
-        label="Parent page ID"
-        value={settings.notionParentPageId}
-        onChangeText={(v) => patch('notionParentPageId', v)}
-        autoCapitalize="none"
-      />
-      <Text style={styles.help}>
-        Create an internal integration at notion.so/my-integrations, share a parent page with it, then
-        paste the token and page ID here.
-      </Text>
 
       <Text style={styles.section}>Epics</Text>
       {epics.map((epic) => (
@@ -203,6 +282,66 @@ export default function SettingsScreen() {
         <PrimaryButton label="Add" variant="ghost" onPress={() => void onAddEpic()} style={{ minWidth: 88 }} />
       </View>
 
+      <Pressable onPress={() => setShowCloud((v) => !v)} style={styles.advancedToggle}>
+        <Text style={styles.advancedLabel}>
+          {showCloud ? 'Hide' : 'Show'} optional OneDrive / Notion
+        </Text>
+      </Pressable>
+
+      {showCloud ? (
+        <>
+          <Text style={styles.help}>
+            Optional. Process works fully offline/local without these. Kept for users who still want
+            cloud mirrors.
+          </Text>
+          <Text style={styles.section}>OneDrive (optional)</Text>
+          <Field
+            label="Azure application (client) ID"
+            value={settings.azureClientId}
+            onChangeText={(v) => patch('azureClientId', v)}
+            placeholder={SETTINGS_PLACEHOLDERS.azureClientId}
+            autoCapitalize="none"
+          />
+          <Field
+            label="Azure tenant ID"
+            value={settings.azureTenantId}
+            onChangeText={(v) => patch('azureTenantId', v)}
+            placeholder={SETTINGS_PLACEHOLDERS.azureTenantId}
+            autoCapitalize="none"
+          />
+          <Text style={styles.help}>Redirect URI to register: {getRedirectUri()}</Text>
+          <Text style={styles.help}>Status: {onedrive ? 'Connected' : 'Not connected'}</Text>
+          <View style={styles.row}>
+            {onedrive ? (
+              <PrimaryButton label="Disconnect" variant="ghost" onPress={() => void onDisconnectMs()} />
+            ) : (
+              <PrimaryButton
+                label="Connect OneDrive"
+                loading={busy}
+                onPress={() => void onConnectMs()}
+              />
+            )}
+          </View>
+
+          <Text style={styles.section}>Notion (optional)</Text>
+          <Field
+            label="Integration token"
+            value={settings.notionToken}
+            onChangeText={(v) => patch('notionToken', v)}
+            secure
+            autoCapitalize="none"
+            placeholder="secret_…"
+          />
+          <Field
+            label="Parent page ID"
+            value={settings.notionParentPageId}
+            onChangeText={(v) => patch('notionParentPageId', v)}
+            placeholder={SETTINGS_PLACEHOLDERS.notionParentPageId}
+            autoCapitalize="none"
+          />
+        </>
+      ) : null}
+
       <PrimaryButton
         label="Save settings"
         loading={busy}
@@ -221,12 +360,14 @@ function Field({
   onChangeText,
   secure,
   autoCapitalize,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChangeText: (v: string) => void;
   secure?: boolean;
   autoCapitalize?: 'none' | 'sentences';
+  placeholder?: string;
 }) {
   return (
     <View style={styles.field}>
@@ -237,6 +378,7 @@ function Field({
         secureTextEntry={secure}
         autoCapitalize={autoCapitalize}
         autoCorrect={false}
+        placeholder={placeholder}
         placeholderTextColor={colors.muted}
         style={styles.input}
       />
@@ -291,6 +433,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   row: { flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 4 },
+  stack: { gap: 10 },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
   epicRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -310,6 +459,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: colors.ink,
     backgroundColor: colors.foam,
+  },
+  advancedToggle: { marginTop: 28, marginBottom: 4 },
+  advancedLabel: {
+    fontFamily: fonts.bodyMed,
+    color: colors.brand,
+    fontSize: 14,
   },
   ok: {
     marginTop: 12,

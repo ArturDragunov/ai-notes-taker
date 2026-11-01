@@ -1,12 +1,15 @@
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { AppSettings } from '@/lib/types';
+import type { AppSettings, ResolvedAiConfig } from '@/lib/types';
 
 const KEYS = {
   apiBaseUrl: 'settings.apiBaseUrl',
   apiKey: 'settings.apiKey',
   sttModel: 'settings.sttModel',
   llmModel: 'settings.llmModel',
+  useSeparateLlm: 'settings.useSeparateLlm',
+  llmApiBaseUrl: 'settings.llmApiBaseUrl',
+  llmApiKey: 'settings.llmApiKey',
   azureClientId: 'settings.azureClientId',
   azureTenantId: 'settings.azureTenantId',
   notionToken: 'settings.notionToken',
@@ -16,13 +19,36 @@ const KEYS = {
   msExpiresAt: 'auth.msExpiresAt',
 } as const;
 
-const DEFAULTS: AppSettings = {
-  apiBaseUrl: 'https://api.openai.com/v1',
-  apiKey: '',
-  sttModel: 'whisper-1',
-  llmModel: 'gpt-4o-mini',
-  azureClientId: '',
+/** Grey placeholder hints only — never written into field values. */
+export const SETTINGS_PLACEHOLDERS = {
+  apiBaseUrl: 'https://openrouter.ai/api/v1',
+  sttModel: 'openai/whisper-1',
+  llmModel: 'openai/gpt-4o-mini',
+  llmApiBaseUrl: 'https://tokenrouter.io/v1',
+  llmModelSeparate: 'deepseek/deepseek-chat',
+  azureClientId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
   azureTenantId: 'common',
+  notionParentPageId: 'Notion parent page id',
+} as const;
+
+/** Used only when a stored field is empty at request time. */
+const RUNTIME_DEFAULTS = {
+  apiBaseUrl: 'https://openrouter.ai/api/v1',
+  sttModel: 'openai/whisper-1',
+  llmModel: 'openai/gpt-4o-mini',
+  azureTenantId: 'common',
+} as const;
+
+const EMPTY: AppSettings = {
+  apiBaseUrl: '',
+  apiKey: '',
+  sttModel: '',
+  llmModel: '',
+  useSeparateLlm: false,
+  llmApiBaseUrl: '',
+  llmApiKey: '',
+  azureClientId: '',
+  azureTenantId: '',
   notionToken: '',
   notionParentPageId: '',
 };
@@ -65,42 +91,54 @@ export async function loadSettings(): Promise<AppSettings> {
     apiKey,
     sttModel,
     llmModel,
+    useSeparateLlmRaw,
+    llmApiBaseUrl,
+    llmApiKey,
     azureClientId,
     azureTenantId,
     notionToken,
     notionParentPageId,
   ] = await Promise.all([
-    getPlain(KEYS.apiBaseUrl, DEFAULTS.apiBaseUrl),
+    getPlain(KEYS.apiBaseUrl),
     getSecret(KEYS.apiKey),
-    getPlain(KEYS.sttModel, DEFAULTS.sttModel),
-    getPlain(KEYS.llmModel, DEFAULTS.llmModel),
+    getPlain(KEYS.sttModel),
+    getPlain(KEYS.llmModel),
+    getPlain(KEYS.useSeparateLlm, '0'),
+    getPlain(KEYS.llmApiBaseUrl),
+    getSecret(KEYS.llmApiKey),
     getPlain(KEYS.azureClientId),
-    getPlain(KEYS.azureTenantId, DEFAULTS.azureTenantId),
+    getPlain(KEYS.azureTenantId),
     getSecret(KEYS.notionToken),
     getPlain(KEYS.notionParentPageId),
   ]);
 
   return {
-    apiBaseUrl: apiBaseUrl.trim() || DEFAULTS.apiBaseUrl,
+    apiBaseUrl: apiBaseUrl.trim(),
     apiKey,
-    sttModel: sttModel.trim() || DEFAULTS.sttModel,
-    llmModel: llmModel.trim() || DEFAULTS.llmModel,
+    sttModel: sttModel.trim(),
+    llmModel: llmModel.trim(),
+    useSeparateLlm: useSeparateLlmRaw === '1' || useSeparateLlmRaw === 'true',
+    llmApiBaseUrl: llmApiBaseUrl.trim(),
+    llmApiKey,
     azureClientId: azureClientId.trim(),
-    azureTenantId: azureTenantId.trim() || DEFAULTS.azureTenantId,
+    azureTenantId: azureTenantId.trim(),
     notionToken,
     notionParentPageId: notionParentPageId.trim(),
   };
 }
 
-export async function saveSettings( partial: Partial<AppSettings>): Promise<AppSettings> {
+export async function saveSettings(partial: Partial<AppSettings>): Promise<AppSettings> {
   const current = await loadSettings();
-  const next = { ...current, ...partial };
+  const next: AppSettings = { ...current, ...partial };
 
   await Promise.all([
     setPlain(KEYS.apiBaseUrl, next.apiBaseUrl),
     setSecret(KEYS.apiKey, next.apiKey),
     setPlain(KEYS.sttModel, next.sttModel),
     setPlain(KEYS.llmModel, next.llmModel),
+    setPlain(KEYS.useSeparateLlm, next.useSeparateLlm ? '1' : '0'),
+    setPlain(KEYS.llmApiBaseUrl, next.llmApiBaseUrl),
+    setSecret(KEYS.llmApiKey, next.llmApiKey),
     setPlain(KEYS.azureClientId, next.azureClientId),
     setPlain(KEYS.azureTenantId, next.azureTenantId),
     setSecret(KEYS.notionToken, next.notionToken),
@@ -108,6 +146,37 @@ export async function saveSettings( partial: Partial<AppSettings>): Promise<AppS
   ]);
 
   return next;
+}
+
+export function resolveAiConfig(settings: AppSettings): ResolvedAiConfig {
+  const sttBaseUrl = settings.apiBaseUrl.trim() || RUNTIME_DEFAULTS.apiBaseUrl;
+  const sttApiKey = settings.apiKey.trim();
+  const sttModel = settings.sttModel.trim() || RUNTIME_DEFAULTS.sttModel;
+  const llmModel = settings.llmModel.trim() || RUNTIME_DEFAULTS.llmModel;
+
+  if (settings.useSeparateLlm) {
+    return {
+      sttBaseUrl,
+      sttApiKey,
+      sttModel,
+      llmBaseUrl: settings.llmApiBaseUrl.trim() || sttBaseUrl,
+      llmApiKey: settings.llmApiKey.trim() || sttApiKey,
+      llmModel,
+    };
+  }
+
+  return {
+    sttBaseUrl,
+    sttApiKey,
+    sttModel,
+    llmBaseUrl: sttBaseUrl,
+    llmApiKey: sttApiKey,
+    llmModel,
+  };
+}
+
+export async function loadResolvedAiConfig(): Promise<ResolvedAiConfig> {
+  return resolveAiConfig(await loadSettings());
 }
 
 export type MsTokens = {
@@ -145,3 +214,5 @@ export async function saveMsTokens(tokens: MsTokens | null): Promise<void> {
     setPlain(KEYS.msExpiresAt, String(tokens.expiresAt)),
   ]);
 }
+
+export { EMPTY as EMPTY_SETTINGS };

@@ -75,10 +75,22 @@ export type AppSettings = {
   apiKey: string;
   sttModel: string;
   llmModel: string;
+  useSeparateLlm: boolean;
+  llmApiBaseUrl: string;
+  llmApiKey: string;
   azureClientId: string;
   azureTenantId: string;
   notionToken: string;
   notionParentPageId: string;
+};
+
+export type ResolvedAiConfig = {
+  sttBaseUrl: string;
+  sttApiKey: string;
+  sttModel: string;
+  llmBaseUrl: string;
+  llmApiKey: string;
+  llmModel: string;
 };
 
 export type StructuredNote = {
@@ -86,4 +98,39 @@ export type StructuredNote = {
   about: string;
   decisions: string;
   actionItems: string[];
+};
+
+export type UsageKind = 'stt' | 'llm_structure' | 'llm_ask';
+
+export type UsageEvent = {
+  id: string;
+  kind: UsageKind;
+  providerBase: string;
+  model: string;
+  audioMs: number;
+  inputChars: number;
+  outputChars: number;
+  estimatedCostUsd: number;
+  noteId: string | null;
+  createdAt: string;
+};
+
+export type StatsRange = 'today' | 'week' | 'month' | 'quarter' | 'all';
+
+export type StatsSummary = {
+  range: StatsRange;
+  recordings: number;
+  minutesRecorded: number;
+  wordsTranscribed: number;
+  notesProcessed: number;
+  askQueries: number;
+  sttCostUsd: number;
+  llmCostUsd: number;
+  totalCostUsd: number;
+  costPerNote: number;
+  minutesPerNote: number;
+  wordsPerMinute: number;
+  medianNoteWords: number;
+  medianProcessingCost: number;
+  byModel: { model: string; kind: string; count: number; costUsd: number }[];
 };
