@@ -25,6 +25,7 @@ import { BrandMark } from '@/components/BrandMark';
 import { NavRow } from '@/components/NavRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
+import { pickAndImportAudio } from '@/services/importAudio';
 import { createPendingNote } from '@/services/notes';
 import { countPendingJobs } from '@/services/queue';
 import { pumpQueue } from '@/services/pipeline';
@@ -151,6 +152,27 @@ export default function HomeScreen() {
     }
   }
 
+  async function onImport() {
+    try {
+      setBusy(true);
+      setError(null);
+      const result = await pickAndImportAudio();
+      if (!result?.notes.length) return;
+      if (result.notes.length === 1) {
+        router.push({ pathname: '/assign', params: { noteId: result.notes[0].id } });
+      } else {
+        router.push({
+          pathname: '/assign',
+          params: { noteIds: result.notes.map((n) => n.id).join(',') },
+        });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const elapsedMs = state.durationMillis || Math.round((recorder.currentTime || 0) * 1000);
 
   return (
@@ -199,9 +221,18 @@ export default function HomeScreen() {
             />
           </View>
         ) : (
-          <Text style={styles.hint}>
-            Tap Record. Keep the phone near the conversation. Pause anytime; assign epics after Stop.
-          </Text>
+          <>
+            <Text style={styles.hint}>
+              Tap Record. Keep the phone near the conversation. Pause anytime; assign epics after Stop.
+            </Text>
+            <PrimaryButton
+              label="Import audio / zip"
+              variant="ghost"
+              loading={busy}
+              onPress={() => void onImport()}
+              style={{ alignSelf: 'stretch' }}
+            />
+          </>
         )}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}

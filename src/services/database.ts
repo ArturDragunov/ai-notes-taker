@@ -2,6 +2,13 @@ import * as SQLite from 'expo-sqlite';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
+async function migrateNotesProcessStep(db: SQLite.SQLiteDatabase): Promise<void> {
+  const cols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(notes)');
+  if (!cols.some((c) => c.name === 'process_step')) {
+    await db.execAsync(`ALTER TABLE notes ADD COLUMN process_step TEXT`);
+  }
+}
+
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = (async () => {
@@ -89,6 +96,7 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
         CREATE INDEX IF NOT EXISTS idx_usage_created ON usage_events(created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_usage_kind ON usage_events(kind, created_at DESC);
       `);
+      await migrateNotesProcessStep(db);
       return db;
     })();
   }

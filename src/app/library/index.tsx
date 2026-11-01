@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -12,7 +13,8 @@ import { NavRow } from '@/components/NavRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { listEpics } from '@/services/epics';
-import { listNotes } from '@/services/notes';
+import { pickAndImportAudio } from '@/services/importAudio';
+import { deleteNotes, listNotes } from '@/services/notes';
 import {
   retryAllPendingOrError,
   retryTranscribeNotes,
@@ -63,6 +65,38 @@ export default function LibraryScreen() {
     }
   }
 
+  function confirmDeleteSelected() {
+    if (!selected.length) return;
+    Alert.alert(
+      'Delete selected notes?',
+      `Removes ${selected.length} note(s) and their local audio.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => void onDeleteSelected(),
+        },
+      ],
+    );
+  }
+
+  async function onDeleteSelected() {
+    try {
+      setBusy(true);
+      setMessage(null);
+      const n = await deleteNotes(selected);
+      setMessage(`Deleted ${n} note(s).`);
+      setSelectMode(false);
+      setSelected([]);
+      await load();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onTranscribePending() {
     try {
       setBusy(true);
@@ -81,12 +115,38 @@ export default function LibraryScreen() {
     }
   }
 
+  async function onImport() {
+    try {
+      setBusy(true);
+      setMessage(null);
+      const result = await pickAndImportAudio();
+      if (!result) return;
+      const { notes: imported } = result;
+      setMessage(`Imported ${imported.length} recording(s).`);
+      await load();
+      if (imported.length === 1) {
+        router.push({ pathname: '/assign', params: { noteId: imported[0].id } });
+      } else if (imported.length > 1) {
+        router.push({
+          pathname: '/assign',
+          params: { noteIds: imported.map((n) => n.id).join(',') },
+        });
+      }
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Screen scroll>
       <NavRow active="library" />
       <BrandMark />
       <Text style={styles.title}>Library</Text>
-      <Text style={styles.sub}>Browse by epic, open notes, or batch-retry transcription.</Text>
+      <Text style={styles.sub}>
+        Browse by epic, import phone recordings, or batch-retry transcription.
+      </Text>
 
       <TextInput
         value={query}
@@ -110,21 +170,38 @@ export default function LibraryScreen() {
           style={{ flex: 1, minHeight: 44 }}
         />
         <PrimaryButton
-          label="Transcribe pending/error"
+          label="Import audio"
           variant="ghost"
           loading={busy}
-          onPress={() => void onTranscribePending()}
-          style={{ flex: 1.4, minHeight: 44 }}
+          onPress={() => void onImport()}
+          style={{ flex: 1, minHeight: 44 }}
         />
       </View>
+      <PrimaryButton
+        label="Transcribe pending/error"
+        variant="ghost"
+        loading={busy}
+        onPress={() => void onTranscribePending()}
+        style={{ marginTop: 8, minHeight: 44 }}
+      />
       {selectMode ? (
-        <PrimaryButton
-          label={`Transcribe selected (${selected.length})`}
-          loading={busy}
-          disabled={!selected.length}
-          onPress={() => void onTranscribeSelected()}
-          style={{ marginTop: 8 }}
-        />
+        <View style={styles.selectActions}>
+          <PrimaryButton
+            label={`Transcribe (${selected.length})`}
+            loading={busy}
+            disabled={!selected.length}
+            onPress={() => void onTranscribeSelected()}
+            style={{ flex: 1, minHeight: 44 }}
+          />
+          <PrimaryButton
+            label={`Delete (${selected.length})`}
+            variant="danger"
+            loading={busy}
+            disabled={!selected.length}
+            onPress={confirmDeleteSelected}
+            style={{ flex: 1, minHeight: 44 }}
+          />
+        </View>
       ) : null}
       {message ? <Text style={styles.message}>{message}</Text> : null}
 
@@ -175,7 +252,9 @@ export default function LibraryScreen() {
             </Pressable>
           );
         })}
-        {!notes.length ? <Text style={styles.empty}>No notes yet. Record one from Home.</Text> : null}
+        {!notes.length ? (
+          <Text style={styles.empty}>No notes yet. Record or import audio.</Text>
+        ) : null}
       </View>
     </Screen>
   );
@@ -206,6 +285,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.foam,
   },
   actions: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  selectActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
   message: {
     marginTop: 10,
     fontFamily: fonts.bodyMed,

@@ -2,7 +2,7 @@
   "expo": {
     "name": "AI Notes",
     "slug": "ai-notes-taker",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "ainotes",
@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.arturdragunov.ainotes",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#0B3D38",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -60,7 +60,8 @@
           "image": "./assets/splash-icon.png"
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "expo-document-picker"
     ],
     "experiments": {
       "typedRoutes": true,

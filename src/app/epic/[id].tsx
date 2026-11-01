@@ -7,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { BackButton } from '@/components/BackButton';
 import { BrandMark } from '@/components/BrandMark';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
@@ -65,6 +66,7 @@ export default function EpicScreen() {
   if (!epic) {
     return (
       <Screen>
+        <BackButton fallbackHref="/library" />
         <Text style={styles.meta}>Loading epic…</Text>
       </Screen>
     );
@@ -72,6 +74,7 @@ export default function EpicScreen() {
 
   return (
     <Screen scroll>
+      <BackButton fallbackHref="/library" />
       <BrandMark />
       <Text style={styles.title}>{epic.name}</Text>
       <Text style={styles.meta}>Slug: Notes/{epic.slug}/</Text>

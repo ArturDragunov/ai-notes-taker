@@ -71,8 +71,11 @@ Or with EAS: `npx eas-cli build --platform android --profile preview` (APK).
 - User-created epics + multi-select after Stop
 - Structured Markdown + audio file kept on device
 - Export/Sync Obsidian vault (folder pick + share sheet)
-- Library search + multi-select **Transcribe selected** / **Transcribe pending/error**
-- Per-note **Retry / Transcribe**
+- Library search + multi-select **Transcribe selected** / **Delete selected** / **Transcribe pending/error**
+- Import phone audio / zip into Process
+- Calm processing UI (“Working on your note…”); small edge Re-transcribe; ← Back on detail
+- Review/edit/merge proposed actions before **Add to Todos**
+- Todos page filters by epic in-list
 - Top-level Todos + home shortcut
 - Ask chat over local note history
 

@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
@@ -21,7 +21,12 @@ export type NavActive =
 
 export function NavRow({ active }: { active?: NavActive }) {
   return (
-    <View style={styles.row}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.row}
+      style={styles.scroll}
+    >
       <Pressable onPress={() => router.replace('/')} hitSlop={8}>
         <Text style={[styles.link, active === 'home' && styles.active]}>Record</Text>
       </Pressable>
@@ -30,16 +35,20 @@ export function NavRow({ active }: { active?: NavActive }) {
           <Text style={[styles.link, active === link.key && styles.active]}>{link.label}</Text>
         </Pressable>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    marginBottom: 18,
+    flexGrow: 0,
+  },
   row: {
     flexDirection: 'row',
-    gap: 14,
-    flexWrap: 'wrap',
-    marginBottom: 18,
+    alignItems: 'center',
+    gap: 16,
+    paddingRight: 8,
   },
   link: {
     fontFamily: fonts.bodyMed,

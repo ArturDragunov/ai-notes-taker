@@ -1,6 +1,12 @@
+import { File } from 'expo-file-system';
 import { createId } from '@/lib/id';
-import type { Epic, Note, NoteStatus, SyncStatus } from '@/lib/types';
+import type { Epic, Note, NoteStatus, ProcessStep, SyncStatus } from '@/lib/types';
 import { getDb } from '@/services/database';
+
+function mapProcessStep(raw: unknown): ProcessStep {
+  if (raw === 'transcribing' || raw === 'summarizing') return raw;
+  return null;
+}
 
 function mapNote(row: Record<string, unknown>): Note {
   return {
@@ -15,6 +21,7 @@ function mapNote(row: Record<string, unknown>): Note {
     durationMs: Number(row.duration_ms ?? 0),
     status: String(row.status) as NoteStatus,
     processError: row.process_error ? String(row.process_error) : null,
+    processStep: mapProcessStep(row.process_step),
     onedriveStatus: String(row.onedrive_status) as SyncStatus,
     notionStatus: String(row.notion_status) as SyncStatus,
     onedrivePath: row.onedrive_path ? String(row.onedrive_path) : null,
@@ -42,6 +49,7 @@ export async function createPendingNote(input: {
     durationMs: input.durationMs,
     status: 'pending_assign',
     processError: null,
+    processStep: null,
     onedriveStatus: 'pending',
     notionStatus: 'pending',
     onedrivePath: null,
@@ -53,10 +61,10 @@ export async function createPendingNote(input: {
   await db.runAsync(
     `INSERT INTO notes (
       id, title, about, decisions, action_items, transcript, markdown,
-      audio_path, duration_ms, status, process_error,
+      audio_path, duration_ms, status, process_error, process_step,
       onedrive_status, notion_status, onedrive_path, notion_page_id,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       note.id,
       note.title,
@@ -69,6 +77,7 @@ export async function createPendingNote(input: {
       note.durationMs,
       note.status,
       note.processError,
+      note.processStep,
       note.onedriveStatus,
       note.notionStatus,
       note.onedrivePath,
@@ -154,6 +163,7 @@ export async function updateNoteFields(
     markdown: string;
     status: NoteStatus;
     processError: string | null;
+    processStep: ProcessStep;
     onedriveStatus: SyncStatus;
     notionStatus: SyncStatus;
     onedrivePath: string | null;
@@ -170,6 +180,7 @@ export async function updateNoteFields(
     markdown: fields.markdown,
     status: fields.status,
     process_error: fields.processError,
+    process_step: fields.processStep,
     onedrive_status: fields.onedriveStatus,
     notion_status: fields.notionStatus,
     onedrive_path: fields.onedrivePath,
@@ -210,6 +221,37 @@ export async function getNoteEpics(noteId: string): Promise<Epic[]> {
 }
 
 export async function deleteNote(id: string): Promise<void> {
+  const note = await getNote(id);
   const db = await getDb();
-  await db.runAsync('DELETE FROM notes WHERE id = ?', [id]);
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM todos WHERE source_note_id = ?', [id]);
+    await db.runAsync(
+      `UPDATE queue_jobs
+       SET status = 'done', updated_at = ?
+       WHERE status IN ('pending', 'failed', 'running')
+         AND payload_json LIKE ?`,
+      [new Date().toISOString(), `%"noteId":"${id}"%`],
+    );
+    await db.runAsync('DELETE FROM notes WHERE id = ?', [id]);
+  });
+
+  if (note?.audioPath) {
+    try {
+      const file = new File(note.audioPath);
+      if (file.exists) file.delete();
+    } catch {
+      // Best-effort local audio cleanup.
+    }
+  }
+}
+
+export async function deleteNotes(ids: string[]): Promise<number> {
+  let n = 0;
+  for (const id of ids) {
+    const existing = await getNote(id);
+    if (!existing) continue;
+    await deleteNote(id);
+    n += 1;
+  }
+  return n;
 }
