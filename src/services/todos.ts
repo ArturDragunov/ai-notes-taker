@@ -24,6 +24,24 @@ export async function listTodos(epicId: string): Promise<TodoItem[]> {
   return rows.map(mapTodo);
 }
 
+export async function listAllTodos(opts?: {
+  openOnly?: boolean;
+}): Promise<(TodoItem & { epicName: string })[]> {
+  const db = await getDb();
+  const where = opts?.openOnly ? 'WHERE t.done = 0' : '';
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT t.*, e.name AS epic_name
+     FROM todos t
+     INNER JOIN epics e ON e.id = t.epic_id
+     ${where}
+     ORDER BY t.done ASC, e.name COLLATE NOCASE ASC, t.sort_order ASC, t.created_at ASC`,
+  );
+  return rows.map((row) => ({
+    ...mapTodo(row),
+    epicName: String(row.epic_name ?? ''),
+  }));
+}
+
 export async function addTodo(input: {
   epicId: string;
   text: string;

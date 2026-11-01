@@ -1,6 +1,6 @@
 # AI Notes
 
-Pocket-like Android notes app: record room audio → assign epic(s) → transcribe + structure → sync Markdown + audio to OneDrive and a Notion page → browse, epic todos, and Ask over your library.
+Pocket-like Android notes app: record room audio → assign epic(s) → transcribe + structure locally → browse, todos, Ask, and optionally export an Obsidian-friendly Markdown vault.
 
 Sideload the release APK on Samsung Galaxy S24 and Xiaomi. No phone-call recording, no live transcript, no speaker diarization.
 
@@ -11,12 +11,10 @@ Sideload the release APK on Samsung Galaxy S24 and Xiaomi. No phone-call recordi
 3. **Xiaomi:** Settings → Privacy protection → Special permissions → Install unknown apps → allow for your file manager → open the APK.
 4. Open **AI Notes**, grant microphone (and notifications if prompted).
 
-Full phone steps: see the project install guide in the agent Context store (`docs/install-guide.md`) or the copy below under **Secrets Artur must create**.
-
 ## Develop
 
 ```bash
-npm install
+npm install --legacy-peer-deps
 npx expo start
 ```
 
@@ -26,7 +24,7 @@ Native release APK (local):
 export ANDROID_HOME=/path/to/Android/Sdk
 export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
 npx expo prebuild --platform android --clean
-# optional: configure android/keystore.properties for a lasting signing key
+# configure android/keystore.properties for a lasting signing key (see credentials/)
 cd android && ./gradlew assembleRelease
 # APK: android/app/build/outputs/apk/release/app-release.apk
 ```
@@ -35,47 +33,49 @@ Or with EAS: `npx eas-cli build --platform android --profile preview` (APK).
 
 ## First-run setup in the app
 
-1. **Settings → AI:** OpenAI-compatible base URL + API key (token router, Groq, Gemini OpenAI bridge, etc.). Defaults: `whisper-1` STT, `gpt-4o-mini` LLM — change to match your gateway.
-2. **Settings → OneDrive:** Azure application (client) ID + tenant (`common` is fine for personal Microsoft accounts). Tap **Connect OneDrive**.
-3. **Settings → Notion:** Internal integration token + parent page ID (page must be shared with the integration).
-4. Create epic names (default epic: **Personal**).
+1. **Settings → Speech-to-text:** OpenAI-compatible base URL + API key + STT model. Fields start empty; grey text is placeholder only.
+2. **Settings → Language model:** Same provider by default, or enable **Use different provider for LLM** (e.g. TokenRouter + DeepSeek) with separate URL/key/model.
+3. Create epic names (default epic: **Personal**).
+4. **Export / Sync notes:** Write a local vault, **Export to folder…** (SAF / Documents), or share the Markdown index — Process does not require OneDrive/Notion.
+5. OneDrive / Notion remain optional under an advanced toggle.
 
 ## Secrets / registrations Artur must create
 
-### OpenAI-compatible gateway
+### STT (required for Process)
 
-- Base URL (e.g. `https://api.openai.com/v1` or your token router)
-- API key with speech transcription + chat completions
+- Base URL (e.g. OpenRouter) + API key with speech transcription
+- STT model name matching your gateway
 
-### Azure app (Microsoft Graph / OneDrive)
+### LLM (required for structuring / Ask)
+
+- Same as STT by default, or a separate TokenRouter (or other) base URL + key + chat model
+
+### Optional: Azure app (Microsoft Graph / OneDrive)
 
 1. [Azure Portal](https://portal.azure.com) → Microsoft Entra ID → App registrations → **New registration**.
-2. Name: `AI Notes`. Supported accounts: personal + work, or single tenant.
-3. Redirect URI (Mobile/native): the value shown in Settings (scheme `ainotes://oauth`, typically `ainotes://oauth`).
-4. Certificates & secrets: **not required** for public client + PKCE.
-5. API permissions → Microsoft Graph delegated: `User.Read`, `Files.ReadWrite`, `offline_access`, `openid`, `profile`. Grant admin consent if your tenant requires it.
-6. Authentication → allow public client flows: **Yes**.
-7. Copy **Application (client) ID** into Settings. Tenant ID or `common`.
+2. Redirect URI (Mobile/native): `ainotes://oauth`.
+3. Graph delegated: `User.Read`, `Files.ReadWrite`, `offline_access`, `openid`, `profile`.
+4. Allow public client flows. Paste Application (client) ID into Settings.
 
-### Notion
+### Optional: Notion
 
 1. [notion.so/my-integrations](https://www.notion.so/my-integrations) → create internal integration.
-2. Copy the secret token into Settings.
-3. Open (or create) a parent page → **⋯ → Connections** → add the integration.
-4. Copy the page ID from the URL (`https://notion.so/Workspace/Name-<PAGE_ID>`) into Settings.
+2. Share a parent page with the integration; paste token + page ID.
 
-## Features shipped
+## Features
 
-- Record / pause / stop with Android microphone foreground service (`expo-audio` background recording)
-- Offline local queue for STT → LLM structure → OneDrive / Notion sync
+- Record / pause / stop with Android microphone foreground service
+- Offline local queue for STT → LLM structure (cloud sync optional)
+- Dual AI providers (STT vs LLM) with shared default
+- Usage / cost Stats screen
 - User-created epics + multi-select after Stop
-- Structured Markdown (title, about, decisions, action items) + audio file
-- OneDrive `Notes/<epic-slug>/` Markdown + audio
-- Notion page create/update
-- In-app library + search
-- Per-epic todos (Markdown-backed, syncs `_todos.md` to OneDrive)
+- Structured Markdown + audio file kept on device
+- Export/Sync Obsidian vault (folder pick + share sheet)
+- Library search + multi-select **Transcribe selected** / **Transcribe pending/error**
+- Per-note **Retry / Transcribe**
+- Top-level Todos + home shortcut
 - Ask chat over local note history
 
-## Out of scope (ship-1)
+## Out of scope
 
 Phone-call / contact-mic recording · live transcript · speaker diarization · iOS

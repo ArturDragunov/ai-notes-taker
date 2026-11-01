@@ -159,8 +159,11 @@ export default function HomeScreen() {
       <View style={styles.hero}>
         <BrandMark large />
         <Text style={styles.tagline}>
-          Record the room. Structure the note. Sync when you’re ready.
+          Record the room. Structure the note. Keep it local — export to Obsidian when you’re ready.
         </Text>
+        <Pressable onPress={() => router.push('/todos')} hitSlop={8} style={styles.todoLink}>
+          <Text style={styles.todoLinkText}>Open todos →</Text>
+        </Pressable>
       </View>
 
       <View style={styles.stage}>
@@ -277,5 +280,14 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: colors.warning,
     fontSize: 13,
+  },
+  todoLink: {
+    marginTop: 14,
+    alignSelf: 'flex-start',
+  },
+  todoLinkText: {
+    fontFamily: fonts.bodyMed,
+    color: colors.brand,
+    fontSize: 15,
   },
 });

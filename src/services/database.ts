@@ -69,10 +69,25 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
           updated_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS usage_events (
+          id TEXT PRIMARY KEY NOT NULL,
+          kind TEXT NOT NULL,
+          provider_base TEXT NOT NULL DEFAULT '',
+          model TEXT NOT NULL DEFAULT '',
+          audio_ms INTEGER NOT NULL DEFAULT 0,
+          input_chars INTEGER NOT NULL DEFAULT 0,
+          output_chars INTEGER NOT NULL DEFAULT 0,
+          estimated_cost_usd REAL NOT NULL DEFAULT 0,
+          note_id TEXT,
+          created_at TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_notes_status ON notes(status);
         CREATE INDEX IF NOT EXISTS idx_notes_created ON notes(created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_todos_epic ON todos(epic_id, sort_order);
         CREATE INDEX IF NOT EXISTS idx_queue_status ON queue_jobs(status, created_at);
+        CREATE INDEX IF NOT EXISTS idx_usage_created ON usage_events(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_usage_kind ON usage_events(kind, created_at DESC);
       `);
       return db;
     })();
