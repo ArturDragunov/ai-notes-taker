@@ -15,14 +15,7 @@ const KEYS = {
   useSeparateLlm: 'settings.useSeparateLlm',
   llmApiBaseUrl: 'settings.llmApiBaseUrl',
   llmApiKey: 'settings.llmApiKey',
-  azureClientId: 'settings.azureClientId',
-  azureTenantId: 'settings.azureTenantId',
-  notionToken: 'settings.notionToken',
-  notionParentPageId: 'settings.notionParentPageId',
   uiScale: 'settings.uiScale',
-  msAccessToken: 'auth.msAccessToken',
-  msRefreshToken: 'auth.msRefreshToken',
-  msExpiresAt: 'auth.msExpiresAt',
 } as const;
 
 /** Grey placeholder hints only — never written into field values. */
@@ -32,9 +25,6 @@ export const SETTINGS_PLACEHOLDERS = {
   llmModel: 'openai/gpt-4o-mini',
   llmApiBaseUrl: 'https://tokenrouter.io/v1',
   llmModelSeparate: 'deepseek/deepseek-chat',
-  azureClientId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
-  azureTenantId: 'common',
-  notionParentPageId: 'Notion parent page id',
 } as const;
 
 /** Used only when a stored field is empty at request time. */
@@ -42,7 +32,6 @@ const RUNTIME_DEFAULTS = {
   apiBaseUrl: 'https://openrouter.ai/api/v1',
   sttModel: 'openai/whisper-large-v3-turbo',
   llmModel: 'openai/gpt-4o-mini',
-  azureTenantId: 'common',
 } as const;
 
 const EMPTY: AppSettings = {
@@ -53,10 +42,6 @@ const EMPTY: AppSettings = {
   useSeparateLlm: false,
   llmApiBaseUrl: '',
   llmApiKey: '',
-  azureClientId: '',
-  azureTenantId: '',
-  notionToken: '',
-  notionParentPageId: '',
 };
 
 async function getPlain(key: string, fallback = ''): Promise<string> {
@@ -100,10 +85,6 @@ export async function loadSettings(): Promise<AppSettings> {
     useSeparateLlmRaw,
     llmApiBaseUrl,
     llmApiKey,
-    azureClientId,
-    azureTenantId,
-    notionToken,
-    notionParentPageId,
   ] = await Promise.all([
     getPlain(KEYS.apiBaseUrl),
     getSecret(KEYS.apiKey),
@@ -112,10 +93,6 @@ export async function loadSettings(): Promise<AppSettings> {
     getPlain(KEYS.useSeparateLlm, '0'),
     getPlain(KEYS.llmApiBaseUrl),
     getSecret(KEYS.llmApiKey),
-    getPlain(KEYS.azureClientId),
-    getPlain(KEYS.azureTenantId),
-    getSecret(KEYS.notionToken),
-    getPlain(KEYS.notionParentPageId),
   ]);
 
   return {
@@ -126,10 +103,6 @@ export async function loadSettings(): Promise<AppSettings> {
     useSeparateLlm: useSeparateLlmRaw === '1' || useSeparateLlmRaw === 'true',
     llmApiBaseUrl: llmApiBaseUrl.trim(),
     llmApiKey,
-    azureClientId: azureClientId.trim(),
-    azureTenantId: azureTenantId.trim(),
-    notionToken,
-    notionParentPageId: notionParentPageId.trim(),
   };
 }
 
@@ -145,10 +118,6 @@ export async function saveSettings(partial: Partial<AppSettings>): Promise<AppSe
     setPlain(KEYS.useSeparateLlm, next.useSeparateLlm ? '1' : '0'),
     setPlain(KEYS.llmApiBaseUrl, next.llmApiBaseUrl),
     setSecret(KEYS.llmApiKey, next.llmApiKey),
-    setPlain(KEYS.azureClientId, next.azureClientId),
-    setPlain(KEYS.azureTenantId, next.azureTenantId),
-    setSecret(KEYS.notionToken, next.notionToken),
-    setPlain(KEYS.notionParentPageId, next.notionParentPageId),
   ]);
 
   return next;
@@ -183,42 +152,6 @@ export function resolveAiConfig(settings: AppSettings): ResolvedAiConfig {
 
 export async function loadResolvedAiConfig(): Promise<ResolvedAiConfig> {
   return resolveAiConfig(await loadSettings());
-}
-
-export type MsTokens = {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
-};
-
-export async function loadMsTokens(): Promise<MsTokens | null> {
-  const [accessToken, refreshToken, expiresAtRaw] = await Promise.all([
-    getSecret(KEYS.msAccessToken),
-    getSecret(KEYS.msRefreshToken),
-    getPlain(KEYS.msExpiresAt),
-  ]);
-  if (!accessToken) return null;
-  return {
-    accessToken,
-    refreshToken,
-    expiresAt: Number(expiresAtRaw || 0),
-  };
-}
-
-export async function saveMsTokens(tokens: MsTokens | null): Promise<void> {
-  if (!tokens) {
-    await Promise.all([
-      setSecret(KEYS.msAccessToken, ''),
-      setSecret(KEYS.msRefreshToken, ''),
-      setPlain(KEYS.msExpiresAt, ''),
-    ]);
-    return;
-  }
-  await Promise.all([
-    setSecret(KEYS.msAccessToken, tokens.accessToken),
-    setSecret(KEYS.msRefreshToken, tokens.refreshToken),
-    setPlain(KEYS.msExpiresAt, String(tokens.expiresAt)),
-  ]);
 }
 
 export async function loadUiScale(): Promise<UiScaleStep> {

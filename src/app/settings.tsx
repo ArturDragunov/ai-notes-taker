@@ -6,12 +6,6 @@ import { NavRow } from '@/components/NavRow';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import {
-  connectOneDrive,
-  disconnectOneDrive,
-  getRedirectUri,
-  isOneDriveConnected,
-} from '@/services/onedrive';
-import {
   exportVaultToPickedFolder,
   getLocalVaultUri,
   shareVaultReadme,
@@ -29,8 +23,6 @@ export default function SettingsScreen() {
   const styles = useAutoScaledStyles(baseStyles);
   const uiScale = useUiScale();
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [onedrive, setOnedrive] = useState(false);
-  const [showCloud, setShowCloud] = useState(false);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [epicName, setEpicName] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -40,11 +32,7 @@ export default function SettingsScreen() {
   const load = useCallback(async () => {
     const s = await loadSettings();
     setSettings(s);
-    setOnedrive(await isOneDriveConnected());
     setEpics(await listEpics());
-    if (s.azureClientId || s.notionToken || s.notionParentPageId) {
-      setShowCloud(true);
-    }
   }, []);
 
   useFocusEffect(
@@ -69,27 +57,6 @@ export default function SettingsScreen() {
     } finally {
       setBusy(false);
     }
-  }
-
-  async function onConnectMs() {
-    try {
-      setBusy(true);
-      setError(null);
-      if (settings) await saveSettings(settings);
-      await connectOneDrive();
-      setOnedrive(true);
-      setMessage('OneDrive connected.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onDisconnectMs() {
-    await disconnectOneDrive();
-    setOnedrive(false);
-    setMessage('OneDrive disconnected.');
   }
 
   async function onAddEpic() {
@@ -157,8 +124,8 @@ export default function SettingsScreen() {
       <BrandMark />
       <Text style={styles.title}>Settings</Text>
       <Text style={styles.sub}>
-        Notes stay on this phone. Add an STT key to Process; cloud sync and Obsidian export are
-        optional.
+        Notes stay on this phone. Add an STT key to Process; export an Obsidian-friendly Markdown
+        vault when you want files on a PC.
       </Text>
 
       <Text style={styles.section}>Text & button size</Text>
@@ -259,10 +226,10 @@ export default function SettingsScreen() {
         autoCapitalize="none"
       />
 
-      <Text style={styles.section}>Export / Sync notes</Text>
+      <Text style={styles.section}>Export notes</Text>
       <Text style={styles.help}>
-        Writes an Obsidian-friendly Markdown vault (Notes/epic-slug/…). Pick a public Documents or
-        vault folder, or share the index via the system sheet — not zip-only.
+        Writes an Obsidian-friendly Markdown vault (Notes/epic-slug/…). Pick a Documents or vault
+        folder, or share the index via the system sheet.
       </Text>
       <View style={styles.stack}>
         <PrimaryButton
@@ -310,66 +277,6 @@ export default function SettingsScreen() {
         />
         <PrimaryButton label="Add" variant="ghost" onPress={() => void onAddEpic()} style={{ minWidth: 88 }} />
       </View>
-
-      <Pressable onPress={() => setShowCloud((v) => !v)} style={styles.advancedToggle}>
-        <Text style={styles.advancedLabel}>
-          {showCloud ? 'Hide' : 'Show'} optional OneDrive / Notion
-        </Text>
-      </Pressable>
-
-      {showCloud ? (
-        <>
-          <Text style={styles.help}>
-            Optional. Process works fully offline/local without these. Kept for users who still want
-            cloud mirrors.
-          </Text>
-          <Text style={styles.section}>OneDrive (optional)</Text>
-          <Field
-            label="Azure application (client) ID"
-            value={settings.azureClientId}
-            onChangeText={(v) => patch('azureClientId', v)}
-            placeholder={SETTINGS_PLACEHOLDERS.azureClientId}
-            autoCapitalize="none"
-          />
-          <Field
-            label="Azure tenant ID"
-            value={settings.azureTenantId}
-            onChangeText={(v) => patch('azureTenantId', v)}
-            placeholder={SETTINGS_PLACEHOLDERS.azureTenantId}
-            autoCapitalize="none"
-          />
-          <Text style={styles.help}>Redirect URI to register: {getRedirectUri()}</Text>
-          <Text style={styles.help}>Status: {onedrive ? 'Connected' : 'Not connected'}</Text>
-          <View style={styles.row}>
-            {onedrive ? (
-              <PrimaryButton label="Disconnect" variant="ghost" onPress={() => void onDisconnectMs()} />
-            ) : (
-              <PrimaryButton
-                label="Connect OneDrive"
-                loading={busy}
-                onPress={() => void onConnectMs()}
-              />
-            )}
-          </View>
-
-          <Text style={styles.section}>Notion (optional)</Text>
-          <Field
-            label="Integration token"
-            value={settings.notionToken}
-            onChangeText={(v) => patch('notionToken', v)}
-            secure
-            autoCapitalize="none"
-            placeholder="secret_…"
-          />
-          <Field
-            label="Parent page ID"
-            value={settings.notionParentPageId}
-            onChangeText={(v) => patch('notionParentPageId', v)}
-            placeholder={SETTINGS_PLACEHOLDERS.notionParentPageId}
-            autoCapitalize="none"
-          />
-        </>
-      ) : null}
 
       <PrimaryButton
         label="Save settings"
@@ -521,12 +428,6 @@ const baseStyles = StyleSheet.create({
     fontFamily: fonts.body,
     color: colors.ink,
     backgroundColor: colors.foam,
-  },
-  advancedToggle: { marginTop: 28, marginBottom: 4 },
-  advancedLabel: {
-    fontFamily: fonts.bodyMed,
-    color: colors.brand,
-    fontSize: 14,
   },
   ok: {
     marginTop: 12,

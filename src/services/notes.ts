@@ -1,6 +1,6 @@
 import { File } from 'expo-file-system';
 import { createId } from '@/lib/id';
-import type { Epic, Note, NoteStatus, ProcessStep, SyncStatus } from '@/lib/types';
+import type { Epic, Note, NoteStatus, ProcessStep } from '@/lib/types';
 import { getDb } from '@/services/database';
 
 function mapProcessStep(raw: unknown): ProcessStep {
@@ -22,10 +22,6 @@ function mapNote(row: Record<string, unknown>): Note {
     status: String(row.status) as NoteStatus,
     processError: row.process_error ? String(row.process_error) : null,
     processStep: mapProcessStep(row.process_step),
-    onedriveStatus: String(row.onedrive_status) as SyncStatus,
-    notionStatus: String(row.notion_status) as SyncStatus,
-    onedrivePath: row.onedrive_path ? String(row.onedrive_path) : null,
-    notionPageId: row.notion_page_id ? String(row.notion_page_id) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
@@ -50,10 +46,6 @@ export async function createPendingNote(input: {
     status: 'pending_assign',
     processError: null,
     processStep: null,
-    onedriveStatus: 'skipped',
-    notionStatus: 'skipped',
-    onedrivePath: null,
-    notionPageId: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -62,9 +54,8 @@ export async function createPendingNote(input: {
     `INSERT INTO notes (
       id, title, about, decisions, action_items, transcript, markdown,
       audio_path, duration_ms, status, process_error, process_step,
-      onedrive_status, notion_status, onedrive_path, notion_page_id,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       note.id,
       note.title,
@@ -78,10 +69,6 @@ export async function createPendingNote(input: {
       note.status,
       note.processError,
       note.processStep,
-      note.onedriveStatus,
-      note.notionStatus,
-      note.onedrivePath,
-      note.notionPageId,
       note.createdAt,
       note.updatedAt,
     ],
@@ -164,10 +151,6 @@ export async function updateNoteFields(
     status: NoteStatus;
     processError: string | null;
     processStep: ProcessStep;
-    onedriveStatus: SyncStatus;
-    notionStatus: SyncStatus;
-    onedrivePath: string | null;
-    notionPageId: string | null;
   }>,
 ): Promise<void> {
   const db = await getDb();
@@ -181,10 +164,6 @@ export async function updateNoteFields(
     status: fields.status,
     process_error: fields.processError,
     process_step: fields.processStep,
-    onedrive_status: fields.onedriveStatus,
-    notion_status: fields.notionStatus,
-    onedrive_path: fields.onedrivePath,
-    notion_page_id: fields.notionPageId,
   };
 
   const sets: string[] = [];

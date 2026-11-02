@@ -2,7 +2,7 @@
 
 Android app for meeting and voice notes: record (or import) audio, assign epic(s), transcribe and structure with your own STT + LLM keys, then browse notes, todos, Ask over history, and export an Obsidian-friendly Markdown vault.
 
-Local-first — notes and audio stay on the device unless you opt into optional cloud sync. Sideload the release APK (Samsung Galaxy S24, Xiaomi, and other Android phones). No phone-call recording, no live transcript, no speaker diarization.
+Local-first — notes and audio stay on the device. Export an Obsidian-friendly Markdown vault when you want files on a PC. Sideload the release APK (Samsung Galaxy S24, Xiaomi, and other Android phones). No phone-call recording, no live transcript, no speaker diarization.
 
 **Clone:** `https://github.com/ArturDragunov/ai-notes-taker`
 
@@ -19,8 +19,6 @@ Local-first — notes and audio stay on the device unless you opt into optional 
 - **Todos with review** — edit / merge proposed actions before adding to Todos; filter by epic
 - **UI scale** — Settings control for app-wide text and button size
 - **Stats** — rough usage / cost visibility for your providers
-
-Optional OneDrive / Notion sync remains behind an advanced Settings toggle; Process does not require them.
 
 ## Install (sideload APK)
 
@@ -40,7 +38,7 @@ Optional OneDrive / Notion sync remains behind an advanced Settings toggle; Proc
 3. **Language model** — same provider by default, or enable **Use different provider for LLM** with a separate base URL / key / model.
 4. Create epic names (default: **Personal**).
 5. Optionally adjust **Text & button size**.
-6. **Export / Sync notes** — Export to folder… or share the vault index when you want Markdown on a PC. OneDrive / Notion are optional under **Show optional OneDrive / Notion**.
+6. **Export** — Export to folder… or share the vault index when you want Markdown on a PC (Obsidian-friendly).
 
 Grey placeholder text in Settings is example-only; fields start empty and nothing is hardcoded into requests until you save values.
 
@@ -48,7 +46,6 @@ Grey placeholder text in Settings is example-only; fields start empty and nothin
 
 - Recordings, transcripts, and structured notes are stored **on the device**.
 - When you tap Process (or re-transcribe), **audio leaves the device** and is sent to **your** configured STT endpoint; transcript/summary text is sent to **your** LLM endpoint. The app does not route audio through a proprietary AI Notes backend.
-- Optional OneDrive / Notion sync (if you enable and connect them) uploads Markdown / audio or pages using credentials you paste in Settings.
 - API keys are stored in the OS secure store on the phone.
 
 ## Build from source
@@ -96,7 +93,7 @@ Issues and pull requests are welcome.
 3. Run `npm run typecheck` before opening a PR.
 4. Describe the user-visible change and how you tested (device or emulator).
 
-Please do not open PRs that add API keys, keystore passwords, personal emails, or private Azure/Notion IDs.
+Please do not open PRs that add API keys, keystore passwords, or personal emails.
 
 ## License
 

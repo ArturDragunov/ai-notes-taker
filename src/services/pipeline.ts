@@ -1,5 +1,4 @@
 import NetInfo from '@react-native-community/netinfo';
-import { slugify } from '@/lib/slug';
 import { parseActionItems, buildNoteMarkdown } from '@/services/markdown';
 import { structureNote, transcribeAudio } from '@/services/ai';
 import {
@@ -9,14 +8,6 @@ import {
   updateNoteFields,
 } from '@/services/notes';
 import { enqueueJob, listPendingJobs, markJob } from '@/services/queue';
-import {
-  isOneDriveConnected,
-  syncNoteToOneDrive,
-  syncTodosMarkdown,
-} from '@/services/onedrive';
-import { createOrUpdateNotionPage, isNotionConfigured } from '@/services/notion';
-import { listTodos, todosToMarkdown } from '@/services/todos';
-import { getEpic } from '@/services/epics';
 
 let pumping = false;
 
@@ -81,9 +72,12 @@ export async function pumpQueue(): Promise<void> {
     const jobs = await listPendingJobs();
     for (const job of jobs) {
       const payload = JSON.parse(job.payloadJson) as Record<string, string>;
-      // Cloud sync needs network; process_note needs network for STT/LLM only.
-      if (job.type !== 'process_note' && !online) continue;
-      if (job.type === 'process_note' && !online) continue;
+      if (job.type !== 'process_note') {
+        // Legacy cloud-sync jobs — mark done and skip.
+        await markJob(job.id, { status: 'done', lastError: null });
+        continue;
+      }
+      if (!online) continue;
 
       await markJob(job.id, {
         status: 'running',
@@ -92,15 +86,7 @@ export async function pumpQueue(): Promise<void> {
       });
 
       try {
-        if (job.type === 'process_note') {
-          await processNote(payload.noteId);
-        } else if (job.type === 'sync_onedrive') {
-          await syncOneDriveJob(payload.noteId);
-        } else if (job.type === 'sync_notion') {
-          await syncNotionJob(payload.noteId);
-        } else if (job.type === 'sync_todos') {
-          await syncTodosJob(payload.epicId);
-        }
+        await processNote(payload.noteId);
         await markJob(job.id, { status: 'done', lastError: null });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -163,29 +149,7 @@ async function processNote(noteId: string): Promise<void> {
       status: 'ready',
       processError: null,
       processStep: null,
-      // Local-first: Process succeeds without cloud destinations.
-      // Action items stay on the note until the user reviews and adds to Todos.
-      onedriveStatus: 'skipped',
-      notionStatus: 'skipped',
     });
-
-    // Optional cloud sync — only when explicitly configured/connected.
-    const oneDriveOk = await isOneDriveConnected();
-    if (oneDriveOk) {
-      await updateNoteFields(noteId, { onedriveStatus: 'pending' });
-      await enqueueJob('sync_onedrive', { noteId });
-      for (const epic of epics) {
-        await enqueueJob('sync_todos', { epicId: epic.id });
-      }
-    }
-
-    const notionOk = await isNotionConfigured();
-    if (notionOk) {
-      await updateNoteFields(noteId, { notionStatus: 'pending' });
-      await enqueueJob('sync_notion', { noteId });
-    }
-
-    void pumpQueue();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await updateNoteFields(noteId, {
@@ -195,57 +159,6 @@ async function processNote(noteId: string): Promise<void> {
     });
     throw err;
   }
-}
-
-async function syncOneDriveJob(noteId: string): Promise<void> {
-  const note = await getNote(noteId);
-  if (!note) throw new Error('Note not found');
-  await updateNoteFields(noteId, { onedriveStatus: 'syncing' });
-  try {
-    const epics = await getNoteEpics(noteId);
-    const path = await syncNoteToOneDrive({
-      epicSlugs: epics.map((e) => e.slug),
-      noteId: note.id,
-      titleSlug: slugify(note.title || 'note'),
-      markdown: note.markdown,
-      audioPath: note.audioPath,
-    });
-    await updateNoteFields(noteId, {
-      onedriveStatus: 'synced',
-      onedrivePath: path,
-    });
-  } catch (err) {
-    await updateNoteFields(noteId, { onedriveStatus: 'error' });
-    throw err;
-  }
-}
-
-async function syncNotionJob(noteId: string): Promise<void> {
-  const note = await getNote(noteId);
-  if (!note) throw new Error('Note not found');
-  await updateNoteFields(noteId, { notionStatus: 'syncing' });
-  try {
-    const pageId = await createOrUpdateNotionPage({
-      pageId: note.notionPageId,
-      title: note.title || 'Untitled note',
-      markdown: note.markdown,
-    });
-    await updateNoteFields(noteId, {
-      notionStatus: 'synced',
-      notionPageId: pageId,
-    });
-  } catch (err) {
-    await updateNoteFields(noteId, { notionStatus: 'error' });
-    throw err;
-  }
-}
-
-async function syncTodosJob(epicId: string): Promise<void> {
-  const epic = await getEpic(epicId);
-  if (!epic) return;
-  if (!(await isOneDriveConnected())) return;
-  const todos = await listTodos(epicId);
-  await syncTodosMarkdown(epic.slug, todosToMarkdown(todos, epic.name));
 }
 
 export { parseActionItems };
