@@ -21,10 +21,13 @@ import { loadSettings, saveSettings, SETTINGS_PLACEHOLDERS } from '@/services/se
 import type { AppSettings } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useAutoScaledStyles, useUiScale } from '@/theme/UiScaleContext';
 import { createEpic, listEpics, deleteEpic } from '@/services/epics';
 import type { Epic } from '@/lib/types';
 
 export default function SettingsScreen() {
+  const styles = useAutoScaledStyles(baseStyles);
+  const uiScale = useUiScale();
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [onedrive, setOnedrive] = useState(false);
   const [showCloud, setShowCloud] = useState(false);
@@ -157,6 +160,32 @@ export default function SettingsScreen() {
         Notes stay on this phone. Add an STT key to Process; cloud sync and Obsidian export are
         optional.
       </Text>
+
+      <Text style={styles.section}>Text & button size</Text>
+      <Text style={styles.help}>
+        Decrease or increase fonts and primary buttons app-wide. Saved on this phone immediately.
+      </Text>
+      <View style={styles.scaleRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Decrease text size"
+          disabled={!uiScale.canDecrease}
+          onPress={uiScale.decrease}
+          style={[styles.scaleBtn, !uiScale.canDecrease && styles.scaleBtnDisabled]}
+        >
+          <Text style={styles.scaleBtnLabel}>A−</Text>
+        </Pressable>
+        <Text style={styles.scaleValue}>{uiScale.label}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Increase text size"
+          disabled={!uiScale.canIncrease}
+          onPress={uiScale.increase}
+          style={[styles.scaleBtn, !uiScale.canIncrease && styles.scaleBtnDisabled]}
+        >
+          <Text style={styles.scaleBtnLabel}>A+</Text>
+        </Pressable>
+      </View>
 
       <Text style={styles.section}>Speech-to-text</Text>
       <Field
@@ -369,6 +398,7 @@ function Field({
   autoCapitalize?: 'none' | 'sentences';
   placeholder?: string;
 }) {
+  const styles = useAutoScaledStyles(baseStyles);
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
@@ -386,7 +416,7 @@ function Field({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   title: {
     marginTop: 18,
     fontFamily: fonts.brandSoft,
@@ -431,6 +461,38 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginBottom: 8,
+  },
+  scaleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 4,
+  },
+  scaleBtn: {
+    minHeight: 48,
+    minWidth: 56,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    backgroundColor: colors.foam,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scaleBtnDisabled: {
+    opacity: 0.4,
+  },
+  scaleBtnLabel: {
+    fontFamily: fonts.bodySemi,
+    color: colors.brand,
+    fontSize: 18,
+  },
+  scaleValue: {
+    flex: 1,
+    fontFamily: fonts.bodyMed,
+    color: colors.ink,
+    fontSize: 16,
+    textAlign: 'center',
   },
   row: { flexDirection: 'row', gap: 10, alignItems: 'center', marginTop: 4 },
   stack: { gap: 10 },

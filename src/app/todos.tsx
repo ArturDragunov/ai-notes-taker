@@ -9,8 +9,10 @@ import { listAllTodos, setTodoDone } from '@/services/todos';
 import type { Epic, TodoItem } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useAutoScaledStyles } from '@/theme/UiScaleContext';
 
 export default function TodosScreen() {
+  const styles = useAutoScaledStyles(baseStyles);
   const [todos, setTodos] = useState<(TodoItem & { epicName: string })[]>([]);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [showDone, setShowDone] = useState(false);
@@ -105,7 +107,7 @@ export default function TodosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   title: {
     marginTop: 18,
     fontFamily: fonts.brandSoft,

@@ -78,6 +78,7 @@ Or with EAS: `npx eas-cli build --platform android --profile preview` (APK).
 - Todos page filters by epic in-list
 - Top-level Todos + home shortcut
 - Ask chat over local note history
+- Settings control for app-wide text and button size (persisted)
 
 ## Out of scope
 

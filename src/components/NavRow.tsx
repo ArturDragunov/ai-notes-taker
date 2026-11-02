@@ -1,7 +1,9 @@
-import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, ScrollView, Text } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useScaledStyles } from '@/theme/UiScaleContext';
+import type { ScaleFn } from '@/theme/uiScale';
 
 const LINKS = [
   { href: '/library', label: 'Library', key: 'library' },
@@ -20,6 +22,8 @@ export type NavActive =
   | 'settings';
 
 export function NavRow({ active }: { active?: NavActive }) {
+  const styles = useScaledStyles(makeStyles);
+
   return (
     <ScrollView
       horizontal
@@ -39,23 +43,25 @@ export function NavRow({ active }: { active?: NavActive }) {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: {
-    marginBottom: 18,
-    flexGrow: 0,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    paddingRight: 8,
-  },
-  link: {
-    fontFamily: fonts.bodyMed,
-    color: colors.muted,
-    fontSize: 14,
-  },
-  active: {
-    color: colors.brand,
-  },
-});
+function makeStyles(s: ScaleFn) {
+  return {
+    scroll: {
+      marginBottom: s(18),
+      flexGrow: 0,
+    },
+    row: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: s(16),
+      paddingRight: 8,
+    },
+    link: {
+      fontFamily: fonts.bodyMed,
+      color: colors.muted,
+      fontSize: s(14),
+    },
+    active: {
+      color: colors.brand,
+    },
+  };
+}

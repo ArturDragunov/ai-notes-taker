@@ -17,6 +17,7 @@ import { enqueueNoteProcessing } from '@/services/pipeline';
 import type { Epic } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useAutoScaledStyles } from '@/theme/UiScaleContext';
 
 function parseNoteIds(
   noteId?: string | string[],
@@ -36,6 +37,7 @@ function parseNoteIds(
 }
 
 export default function AssignScreen() {
+  const styles = useAutoScaledStyles(baseStyles);
   const params = useLocalSearchParams<{ noteId?: string; noteIds?: string }>();
   const targets = parseNoteIds(params.noteId, params.noteIds);
   const [epics, setEpics] = useState<Epic[]>([]);
@@ -140,7 +142,7 @@ export default function AssignScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   title: {
     marginTop: 22,
     fontFamily: fonts.brandSoft,

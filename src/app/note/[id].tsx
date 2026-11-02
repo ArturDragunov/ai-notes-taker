@@ -23,6 +23,7 @@ import {
 import type { Epic, Note } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useAutoScaledStyles } from '@/theme/UiScaleContext';
 
 type DraftAction = { id: string; text: string; selected: boolean };
 
@@ -35,6 +36,7 @@ function stepLabel(note: Note): string {
 }
 
 export default function NoteScreen() {
+  const styles = useAutoScaledStyles(baseStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const [note, setNote] = useState<Note | null>(null);
   const [epics, setEpics] = useState<Epic[]>([]);
@@ -350,7 +352,7 @@ export default function NoteScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

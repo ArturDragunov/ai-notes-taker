@@ -9,6 +9,7 @@ import { listNotes } from '@/services/notes';
 import { noteSearchBlob } from '@/services/markdown';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useAutoScaledStyles } from '@/theme/UiScaleContext';
 
 function rankNotes(question: string, notes: Awaited<ReturnType<typeof listNotes>>) {
   const terms = question
@@ -30,6 +31,7 @@ function rankNotes(question: string, notes: Awaited<ReturnType<typeof listNotes>
 }
 
 export default function AskScreen() {
+  const styles = useAutoScaledStyles(baseStyles);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [busy, setBusy] = useState(false);
@@ -89,7 +91,7 @@ export default function AskScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   title: {
     marginTop: 18,
     fontFamily: fonts.brandSoft,

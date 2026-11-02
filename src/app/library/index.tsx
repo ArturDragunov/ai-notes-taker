@@ -22,8 +22,10 @@ import {
 import type { Epic, Note } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useAutoScaledStyles } from '@/theme/UiScaleContext';
 
 export default function LibraryScreen() {
+  const styles = useAutoScaledStyles(baseStyles);
   const [query, setQuery] = useState('');
   const [epics, setEpics] = useState<Epic[]>([]);
   const [notes, setNotes] = useState<(Note & { epicNames: string })[]>([]);
@@ -260,7 +262,7 @@ export default function LibraryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   title: {
     marginTop: 18,
     fontFamily: fonts.brandSoft,

@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { useAppBootstrap } from '@/hooks/useAppBootstrap';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from '@/theme/colors';
+import { UiScaleProvider } from '@/theme/UiScaleContext';
 
 export default function RootLayout() {
   const ready = useAppBootstrap();
@@ -15,13 +16,15 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: colors.paper },
-        animation: 'fade',
-      }}
-    />
+    <UiScaleProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.paper },
+          animation: 'fade',
+        }}
+      />
+    </UiScaleProvider>
   );
 }
 
