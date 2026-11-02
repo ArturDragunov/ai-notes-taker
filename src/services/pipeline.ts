@@ -145,11 +145,19 @@ async function processNote(noteId: string): Promise<void> {
       audioFileName,
     });
 
+    const takeawaysText =
+      structured.takeaways?.length
+        ? structured.takeaways.map((t) => `- ${t}`).join('\n')
+        : structured.decisions || '';
+
     await updateNoteFields(noteId, {
       title: structured.title,
       about: structured.about,
-      decisions: structured.decisions,
-      actionItems: structured.actionItems.map((a) => `- [ ] ${a}`).join('\n'),
+      decisions: takeawaysText,
+      // Empty string when no real commitments — UI hides Add-to-Todos.
+      actionItems: structured.actionItems.length
+        ? structured.actionItems.map((a) => `- [ ] ${a}`).join('\n')
+        : '',
       transcript,
       markdown,
       status: 'ready',

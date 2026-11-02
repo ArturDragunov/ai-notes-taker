@@ -314,7 +314,7 @@ export default function NoteScreen() {
 
       {note.decisions && !inFlight ? (
         <>
-          <Text style={styles.h}>Decisions</Text>
+          <Text style={styles.h}>Takeaways</Text>
           <Text style={styles.body}>{note.decisions}</Text>
         </>
       ) : null}
