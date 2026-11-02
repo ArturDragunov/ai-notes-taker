@@ -12,7 +12,8 @@ Local-first — notes and audio stay on the device unless you opt into optional 
 - **Epics** — user-created topics (jobs/projects); multi-select after stop when a meeting spans more than one
 - **STT + LLM (BYOK)** — OpenAI-compatible speech-to-text and chat; default OpenRouter, or separate providers (e.g. TokenRouter for LLM)
 - **Offline queue** — process when online; retry / batch re-transcribe from Library
-- **Structured notes** — title, about, decisions, action items, full transcript + Markdown on device
+- **Structured notes** — title, about, takeaways, optional action items, full transcript + Markdown on device
+- **Long recordings** — STT audio chunking when uploads exceed ~45MB; overlapping LLM windows + merge for long transcripts
 - **Obsidian export** — write a local vault, export to a folder (SAF), or share the Markdown index
 - **Ask (RAG-style)** — chat over local note history
 - **Todos with review** — edit / merge proposed actions before adding to Todos; filter by epic

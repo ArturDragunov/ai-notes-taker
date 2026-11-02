@@ -9,10 +9,22 @@ export function buildNoteMarkdown(input: {
   audioFileName?: string | null;
 }): string {
   const mins = Math.max(1, Math.round(input.durationMs / 60000));
+  const takeaways =
+    input.structured.takeaways?.length
+      ? input.structured.takeaways
+      : String(input.structured.decisions || '')
+          .split('\n')
+          .map((l) => l.replace(/^[-*]\s+/, '').trim())
+          .filter(Boolean);
+
+  const takeawaysBlock = takeaways.length
+    ? takeaways.map((t) => `- ${t}`).join('\n')
+    : '_None noted._';
+
   const actions =
     input.structured.actionItems.length > 0
       ? input.structured.actionItems.map((a) => `- [ ] ${a}`).join('\n')
-      : '- [ ] _(none)_';
+      : '_No action items._';
 
   return [
     `# ${input.structured.title}`,
@@ -26,9 +38,9 @@ export function buildNoteMarkdown(input: {
     '',
     input.structured.about || '_No summary._',
     '',
-    '## Decisions',
+    '## Takeaways',
     '',
-    input.structured.decisions || '_None noted._',
+    takeawaysBlock,
     '',
     '## Action items',
     '',
@@ -47,7 +59,7 @@ export function parseActionItems(markdownOrList: string): string[] {
   return markdownOrList
     .split('\n')
     .map((line) => line.replace(/^[-*]\s*(\[[ xX]\])?\s*/, '').trim())
-    .filter(Boolean);
+    .filter((line) => Boolean(line) && line !== '_(none)_' && line !== '_No action items._');
 }
 
 export function noteSearchBlob(note: Note): string {

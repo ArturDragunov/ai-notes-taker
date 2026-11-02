@@ -96,11 +96,27 @@ export type ResolvedAiConfig = {
   llmModel: string;
 };
 
+/** High-confidence commitment extracted from a transcript (or merge pass). */
+export type StructuredActionItem = {
+  owner: string | null;
+  verb: string;
+  task: string;
+  deadline: string | null;
+  confidence: number;
+};
+
 export type StructuredNote = {
   title: string;
   about: string;
-  decisions: string;
+  /** Insight bullets — always present (may be empty only if transcript is empty). */
+  takeaways: string[];
+  /**
+   * Real verb commitments only. Empty is OK — never invent todos.
+   * Stored on the note as markdown checklist lines.
+   */
   actionItems: string[];
+  /** @deprecated Prefer takeaways; kept during transition for markdown builders. */
+  decisions?: string;
 };
 
 export type UsageKind = 'stt' | 'llm_structure' | 'llm_ask';
