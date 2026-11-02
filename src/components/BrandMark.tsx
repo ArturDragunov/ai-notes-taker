@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -8,10 +8,13 @@ import Animated, {
 import { useEffect } from 'react';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useScaledStyles } from '@/theme/UiScaleContext';
+import type { ScaleFn } from '@/theme/uiScale';
 
 export function BrandMark({ large = false }: { large?: boolean }) {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(12);
+  const styles = useScaledStyles(makeStyles);
 
   useEffect(() => {
     opacity.value = withDelay(80, withTiming(1, { duration: 500 }));
@@ -31,22 +34,24 @@ export function BrandMark({ large = false }: { large?: boolean }) {
   );
 }
 
-const styles = StyleSheet.create({
-  brand: {
-    fontFamily: fonts.brand,
-    fontSize: 34,
-    color: colors.brand,
-    letterSpacing: -0.6,
-  },
-  brandLarge: {
-    fontSize: 44,
-    lineHeight: 50,
-  },
-  rule: {
-    marginTop: 10,
-    width: 42,
-    height: 3,
-    backgroundColor: colors.accent,
-    borderRadius: 2,
-  },
-});
+function makeStyles(s: ScaleFn) {
+  return {
+    brand: {
+      fontFamily: fonts.brand,
+      fontSize: s(34),
+      color: colors.brand,
+      letterSpacing: -0.6,
+    },
+    brandLarge: {
+      fontSize: s(44),
+      lineHeight: s(50),
+    },
+    rule: {
+      marginTop: 10,
+      width: 42,
+      height: 3,
+      backgroundColor: colors.accent,
+      borderRadius: 2,
+    },
+  };
+}

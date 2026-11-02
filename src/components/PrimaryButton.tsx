@@ -1,12 +1,13 @@
 import {
   Pressable,
-  StyleSheet,
   Text,
   ViewStyle,
   ActivityIndicator,
 } from 'react-native';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useScaledStyles } from '@/theme/UiScaleContext';
+import type { ScaleFn } from '@/theme/uiScale';
 
 export function PrimaryButton({
   label,
@@ -23,6 +24,7 @@ export function PrimaryButton({
   loading?: boolean;
   style?: ViewStyle;
 }) {
+  const styles = useScaledStyles(makeStyles);
   const bg =
     variant === 'accent'
       ? colors.accent
@@ -60,21 +62,23 @@ export function PrimaryButton({
   );
 }
 
-const styles = StyleSheet.create({
-  btn: {
-    minHeight: 52,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-  ghost: {
-    borderWidth: 1.5,
-    borderColor: colors.line,
-  },
-  label: {
-    fontFamily: fonts.bodySemi,
-    color: '#fff',
-    fontSize: 16,
-  },
-});
+function makeStyles(s: ScaleFn) {
+  return {
+    btn: {
+      minHeight: s(52),
+      borderRadius: 14,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      paddingHorizontal: s(18),
+    },
+    ghost: {
+      borderWidth: 1.5,
+      borderColor: colors.line,
+    },
+    label: {
+      fontFamily: fonts.bodySemi,
+      color: '#fff',
+      fontSize: s(16),
+    },
+  };
+}

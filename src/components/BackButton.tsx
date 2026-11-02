@@ -1,7 +1,9 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 import { router } from 'expo-router';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useScaledStyles } from '@/theme/UiScaleContext';
+import type { ScaleFn } from '@/theme/uiScale';
 
 export function BackButton({
   label = 'Back',
@@ -10,6 +12,8 @@ export function BackButton({
   label?: string;
   fallbackHref?: string;
 }) {
+  const styles = useScaledStyles(makeStyles);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -26,15 +30,17 @@ export function BackButton({
   );
 }
 
-const styles = StyleSheet.create({
-  btn: {
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-    paddingVertical: 4,
-  },
-  text: {
-    fontFamily: fonts.bodyMed,
-    color: colors.brand,
-    fontSize: 15,
-  },
-});
+function makeStyles(s: ScaleFn) {
+  return {
+    btn: {
+      alignSelf: 'flex-start' as const,
+      marginBottom: s(8),
+      paddingVertical: s(4),
+    },
+    text: {
+      fontFamily: fonts.bodyMed,
+      color: colors.brand,
+      fontSize: s(15),
+    },
+  };
+}

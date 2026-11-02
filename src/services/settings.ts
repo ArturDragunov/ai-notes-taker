@@ -1,6 +1,11 @@
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AppSettings, ResolvedAiConfig } from '@/lib/types';
+import {
+  clampUiScale,
+  DEFAULT_UI_SCALE,
+  type UiScaleStep,
+} from '@/theme/uiScale';
 
 const KEYS = {
   apiBaseUrl: 'settings.apiBaseUrl',
@@ -14,6 +19,7 @@ const KEYS = {
   azureTenantId: 'settings.azureTenantId',
   notionToken: 'settings.notionToken',
   notionParentPageId: 'settings.notionParentPageId',
+  uiScale: 'settings.uiScale',
   msAccessToken: 'auth.msAccessToken',
   msRefreshToken: 'auth.msRefreshToken',
   msExpiresAt: 'auth.msExpiresAt',
@@ -213,6 +219,19 @@ export async function saveMsTokens(tokens: MsTokens | null): Promise<void> {
     setSecret(KEYS.msRefreshToken, tokens.refreshToken),
     setPlain(KEYS.msExpiresAt, String(tokens.expiresAt)),
   ]);
+}
+
+export async function loadUiScale(): Promise<UiScaleStep> {
+  const raw = await getPlain(KEYS.uiScale, String(DEFAULT_UI_SCALE));
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return DEFAULT_UI_SCALE;
+  return clampUiScale(parsed);
+}
+
+export async function saveUiScale(scale: UiScaleStep): Promise<UiScaleStep> {
+  const next = clampUiScale(scale);
+  await setPlain(KEYS.uiScale, String(next));
+  return next;
 }
 
 export { EMPTY as EMPTY_SETTINGS };

@@ -31,6 +31,7 @@ import { countPendingJobs } from '@/services/queue';
 import { pumpQueue } from '@/services/pipeline';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useAutoScaledStyles } from '@/theme/UiScaleContext';
 
 function formatMs(ms: number): string {
   const total = Math.floor(ms / 1000);
@@ -42,6 +43,7 @@ function formatMs(ms: number): string {
 }
 
 export default function HomeScreen() {
+  const styles = useAutoScaledStyles(baseStyles);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const state = useAudioRecorderState(recorder, 250);
   const [phase, setPhase] = useState<'idle' | 'recording' | 'paused'>('idle');
@@ -244,7 +246,7 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   hero: {
     marginTop: 8,
     marginBottom: 28,

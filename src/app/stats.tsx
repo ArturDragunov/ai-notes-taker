@@ -8,6 +8,7 @@ import type { StatsRange, StatsSummary } from '@/lib/types';
 import { getStatsSummary } from '@/services/usage';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useAutoScaledStyles } from '@/theme/UiScaleContext';
 
 const RANGES: { key: StatsRange; label: string }[] = [
   { key: 'today', label: 'Today' },
@@ -23,6 +24,7 @@ function money(n: number): string {
 }
 
 export default function StatsScreen() {
+  const styles = useAutoScaledStyles(baseStyles);
   const [range, setRange] = useState<StatsRange>('month');
   const [stats, setStats] = useState<StatsSummary | null>(null);
 
@@ -106,6 +108,7 @@ export default function StatsScreen() {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
+  const styles = useAutoScaledStyles(baseStyles);
   return (
     <View style={styles.metric}>
       <Text style={styles.metricLabel}>{label}</Text>
@@ -114,7 +117,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   title: {
     marginTop: 18,
     fontFamily: fonts.brandSoft,

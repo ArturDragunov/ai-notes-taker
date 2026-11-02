@@ -24,8 +24,10 @@ import { pumpQueue } from '@/services/pipeline';
 import type { Epic, Note, TodoItem } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
+import { useAutoScaledStyles } from '@/theme/UiScaleContext';
 
 export default function EpicScreen() {
+  const styles = useAutoScaledStyles(baseStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const [epic, setEpic] = useState<Epic | null>(null);
   const [todos, setTodos] = useState<TodoItem[]>([]);
@@ -119,7 +121,7 @@ export default function EpicScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   title: {
     marginTop: 18,
     fontFamily: fonts.brandSoft,
