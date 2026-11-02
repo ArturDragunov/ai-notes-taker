@@ -239,14 +239,6 @@ export default function NoteScreen() {
         </>
       )}
 
-      {(note.onedriveStatus !== 'skipped' || note.notionStatus !== 'skipped') &&
-      !inFlight ? (
-        <Text style={styles.meta}>
-          OneDrive: {note.onedriveStatus}
-          {note.onedrivePath ? ` (${note.onedrivePath})` : ''} · Notion: {note.notionStatus}
-        </Text>
-      ) : null}
-
       {isError && note.processError ? (
         <Text style={styles.error}>{note.processError}</Text>
       ) : null}

@@ -9,6 +9,14 @@ async function migrateNotesProcessStep(db: SQLite.SQLiteDatabase): Promise<void>
   }
 }
 
+/** Local-first default: unused cloud sync should not stay "pending". */
+async function migrateIdleSyncStatus(db: SQLite.SQLiteDatabase): Promise<void> {
+  await db.execAsync(`
+    UPDATE notes SET onedrive_status = 'skipped' WHERE onedrive_status = 'pending';
+    UPDATE notes SET notion_status = 'skipped' WHERE notion_status = 'pending';
+  `);
+}
+
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = (async () => {
@@ -37,8 +45,8 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
           duration_ms INTEGER NOT NULL DEFAULT 0,
           status TEXT NOT NULL DEFAULT 'pending_assign',
           process_error TEXT,
-          onedrive_status TEXT NOT NULL DEFAULT 'pending',
-          notion_status TEXT NOT NULL DEFAULT 'pending',
+          onedrive_status TEXT NOT NULL DEFAULT 'skipped',
+          notion_status TEXT NOT NULL DEFAULT 'skipped',
           onedrive_path TEXT,
           notion_page_id TEXT,
           created_at TEXT NOT NULL,
@@ -97,6 +105,7 @@ export async function getDb(): Promise<SQLite.SQLiteDatabase> {
         CREATE INDEX IF NOT EXISTS idx_usage_kind ON usage_events(kind, created_at DESC);
       `);
       await migrateNotesProcessStep(db);
+      await migrateIdleSyncStatus(db);
       return db;
     })();
   }

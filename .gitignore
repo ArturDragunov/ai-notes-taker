@@ -13,6 +13,7 @@ expo-env.d.ts
 .kotlin/
 *.orig.*
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
@@ -31,7 +32,9 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+.env
+.env.*
+!.env.example
 
 # typescript
 *.tsbuildinfo
@@ -40,12 +43,12 @@ yarn-error.*
 /ios
 /android
 
+# Sideload / Play signing — generate your own (see credentials/README.md)
+credentials/*.keystore
+credentials/*.jks
 android/keystore.properties
+android/local.properties
 
 # Large local artifacts
 ai-notes-release.apk
 *.apk
-
-# Keep sideload keystore documented; ignore local gradle signing props
-android/keystore.properties
-android/local.properties

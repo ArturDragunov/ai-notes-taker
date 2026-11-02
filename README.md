@@ -1,85 +1,102 @@
 # AI Notes
 
-Pocket-like Android notes app: record room audio → assign epic(s) → transcribe + structure locally → browse, todos, Ask, and optionally export an Obsidian-friendly Markdown vault.
+Android app for meeting and voice notes: record (or import) audio, assign epic(s), transcribe and structure with your own STT + LLM keys, then browse notes, todos, Ask over history, and export an Obsidian-friendly Markdown vault.
 
-Sideload the release APK on Samsung Galaxy S24 and Xiaomi. No phone-call recording, no live transcript, no speaker diarization.
+Local-first — notes and audio stay on the device unless you opt into optional cloud sync. Sideload the release APK (Samsung Galaxy S24, Xiaomi, and other Android phones). No phone-call recording, no live transcript, no speaker diarization.
 
-## Install (sideload)
+**Clone:** `https://github.com/ArturDragunov/ai-notes-taker`
 
-1. Copy `ai-notes-release.apk` (from a release / CI artifact / `android/app/build/outputs/apk/release/`) to the phone.
-2. **Samsung:** Settings → Security / Biometrics → allow Install unknown apps for Files or Chrome → open the APK.
-3. **Xiaomi:** Settings → Privacy protection → Special permissions → Install unknown apps → allow for your file manager → open the APK.
-4. Open **AI Notes**, grant microphone (and notifications if prompted).
+## Features
 
-## Develop
+- **Record / import** — one-tap mic recording with Android foreground service, or import audio / zip from the phone
+- **Epics** — user-created topics (jobs/projects); multi-select after stop when a meeting spans more than one
+- **STT + LLM (BYOK)** — OpenAI-compatible speech-to-text and chat; default OpenRouter, or separate providers (e.g. TokenRouter for LLM)
+- **Offline queue** — process when online; retry / batch re-transcribe from Library
+- **Structured notes** — title, about, decisions, action items, full transcript + Markdown on device
+- **Obsidian export** — write a local vault, export to a folder (SAF), or share the Markdown index
+- **Ask (RAG-style)** — chat over local note history
+- **Todos with review** — edit / merge proposed actions before adding to Todos; filter by epic
+- **UI scale** — Settings control for app-wide text and button size
+- **Stats** — rough usage / cost visibility for your providers
+
+Optional OneDrive / Notion sync remains behind an advanced Settings toggle; Process does not require them.
+
+## Install (sideload APK)
+
+1. Get `ai-notes-release.apk` from a [GitHub Release](https://github.com/ArturDragunov/ai-notes-taker/releases) (or build from source — see below).
+2. Copy the APK to the phone (USB, Drive, Messages, etc.).
+3. **Samsung:** Settings → Security / Biometrics → allow **Install unknown apps** for Files or Chrome → open the APK.
+4. **Xiaomi:** Settings → Privacy protection → Special permissions → **Install unknown apps** → allow for your file manager → open the APK. If Play Protect blocks it, choose Install anyway.
+5. Open **AI Notes**, grant **Microphone** (and notifications if prompted so the recording service can show “Recording audio”).
+
+## Settings (first run)
+
+1. Open **Settings**.
+2. **Speech-to-text**
+   - Base URL: `https://openrouter.ai/api/v1`
+   - API key: your OpenRouter (or other OpenAI-compatible) key
+   - STT model: e.g. `openai/whisper-large-v3-turbo`
+3. **Language model** — same provider by default, or enable **Use different provider for LLM** with a separate base URL / key / model.
+4. Create epic names (default: **Personal**).
+5. Optionally adjust **Text & button size**.
+6. **Export / Sync notes** — Export to folder… or share the vault index when you want Markdown on a PC. OneDrive / Notion are optional under **Show optional OneDrive / Notion**.
+
+Grey placeholder text in Settings is example-only; fields start empty and nothing is hardcoded into requests until you save values.
+
+## Privacy
+
+- Recordings, transcripts, and structured notes are stored **on the device**.
+- When you tap Process (or re-transcribe), **audio leaves the device** and is sent to **your** configured STT endpoint; transcript/summary text is sent to **your** LLM endpoint. The app does not route audio through a proprietary AI Notes backend.
+- Optional OneDrive / Notion sync (if you enable and connect them) uploads Markdown / audio or pages using credentials you paste in Settings.
+- API keys are stored in the OS secure store on the phone.
+
+## Build from source
+
+Requirements: Node.js 20+, JDK 17+, Android SDK.
 
 ```bash
+git clone https://github.com/ArturDragunov/ai-notes-taker.git
+cd ai-notes-taker
 npm install --legacy-peer-deps
+```
+
+Dev server (Expo):
+
+```bash
 npx expo start
 ```
 
-Native release APK (local):
+Native release APK:
 
 ```bash
 export ANDROID_HOME=/path/to/Android/Sdk
 export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+
 npx expo prebuild --platform android --clean
-# configure android/keystore.properties for a lasting signing key (see credentials/)
+# generate a local keystore — see credentials/README.md
+# create android/keystore.properties (gitignored) pointing at your keystore
+
 cd android && ./gradlew assembleRelease
 # APK: android/app/build/outputs/apk/release/app-release.apk
 ```
 
-Or with EAS: `npx eas-cli build --platform android --profile preview` (APK).
+Or with EAS: `npx eas-cli@latest build --platform android --profile preview` (APK).
 
-## First-run setup in the app
+```bash
+npm run typecheck
+```
 
-1. **Settings → Speech-to-text:** OpenAI-compatible base URL + API key + STT model. Fields start empty; grey text is placeholder only.
-2. **Settings → Language model:** Same provider by default, or enable **Use different provider for LLM** (e.g. TokenRouter + DeepSeek) with separate URL/key/model.
-3. Create epic names (default epic: **Personal**).
-4. **Export / Sync notes:** Write a local vault, **Export to folder…** (SAF / Documents), or share the Markdown index — Process does not require OneDrive/Notion.
-5. OneDrive / Notion remain optional under an advanced toggle.
+## Contributing
 
-## Secrets / registrations Artur must create
+Issues and pull requests are welcome.
 
-### STT (required for Process)
+1. Fork the repo and create a feature branch.
+2. Prefer focused changes; keep secrets and keystores out of commits.
+3. Run `npm run typecheck` before opening a PR.
+4. Describe the user-visible change and how you tested (device or emulator).
 
-- Base URL (e.g. OpenRouter) + API key with speech transcription
-- STT model name matching your gateway
+Please do not open PRs that add API keys, keystore passwords, personal emails, or private Azure/Notion IDs.
 
-### LLM (required for structuring / Ask)
+## License
 
-- Same as STT by default, or a separate TokenRouter (or other) base URL + key + chat model
-
-### Optional: Azure app (Microsoft Graph / OneDrive)
-
-1. [Azure Portal](https://portal.azure.com) → Microsoft Entra ID → App registrations → **New registration**.
-2. Redirect URI (Mobile/native): `ainotes://oauth`.
-3. Graph delegated: `User.Read`, `Files.ReadWrite`, `offline_access`, `openid`, `profile`.
-4. Allow public client flows. Paste Application (client) ID into Settings.
-
-### Optional: Notion
-
-1. [notion.so/my-integrations](https://www.notion.so/my-integrations) → create internal integration.
-2. Share a parent page with the integration; paste token + page ID.
-
-## Features
-
-- Record / pause / stop with Android microphone foreground service
-- Offline local queue for STT → LLM structure (cloud sync optional)
-- Dual AI providers (STT vs LLM) with shared default
-- Usage / cost Stats screen
-- User-created epics + multi-select after Stop
-- Structured Markdown + audio file kept on device
-- Export/Sync Obsidian vault (folder pick + share sheet)
-- Library search + multi-select **Transcribe selected** / **Delete selected** / **Transcribe pending/error**
-- Import phone audio / zip into Process
-- Calm processing UI (“Working on your note…”); small edge Re-transcribe; ← Back on detail
-- Review/edit/merge proposed actions before **Add to Todos**
-- Todos page filters by epic in-list
-- Top-level Todos + home shortcut
-- Ask chat over local note history
-- Settings control for app-wide text and button size (persisted)
-
-## Out of scope
-
-Phone-call / contact-mic recording · live transcript · speaker diarization · iOS
+MIT — see [LICENSE](LICENSE).
