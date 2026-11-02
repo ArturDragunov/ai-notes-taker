@@ -28,7 +28,7 @@ const KEYS = {
 /** Grey placeholder hints only — never written into field values. */
 export const SETTINGS_PLACEHOLDERS = {
   apiBaseUrl: 'https://openrouter.ai/api/v1',
-  sttModel: 'openai/whisper-1',
+  sttModel: 'openai/whisper-large-v3-turbo',
   llmModel: 'openai/gpt-4o-mini',
   llmApiBaseUrl: 'https://tokenrouter.io/v1',
   llmModelSeparate: 'deepseek/deepseek-chat',
@@ -40,7 +40,7 @@ export const SETTINGS_PLACEHOLDERS = {
 /** Used only when a stored field is empty at request time. */
 const RUNTIME_DEFAULTS = {
   apiBaseUrl: 'https://openrouter.ai/api/v1',
-  sttModel: 'openai/whisper-1',
+  sttModel: 'openai/whisper-large-v3-turbo',
   llmModel: 'openai/gpt-4o-mini',
   azureTenantId: 'common',
 } as const;
