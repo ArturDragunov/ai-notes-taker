@@ -19,8 +19,6 @@ import {
   setTodoDone,
   todosToMarkdown,
 } from '@/services/todos';
-import { enqueueJob } from '@/services/queue';
-import { pumpQueue } from '@/services/pipeline';
 import type { Epic, Note, TodoItem } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
@@ -52,17 +50,11 @@ export default function EpicScreen() {
     await addTodo({ epicId: id, text });
     setText('');
     await load();
-    await enqueueJob('sync_todos', { epicId: id });
-    void pumpQueue();
   }
 
   async function toggle(todo: TodoItem) {
     await setTodoDone(todo.id, !todo.done);
     await load();
-    if (id) {
-      await enqueueJob('sync_todos', { epicId: id });
-      void pumpQueue();
-    }
   }
 
   if (!epic) {

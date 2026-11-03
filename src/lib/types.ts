@@ -13,8 +13,6 @@ export type NoteStatus =
   | 'ready'
   | 'error';
 
-export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'error' | 'skipped';
-
 export type ProcessStep = 'transcribing' | 'summarizing' | null;
 
 export type Note = {
@@ -30,10 +28,6 @@ export type Note = {
   status: NoteStatus;
   processError: string | null;
   processStep: ProcessStep;
-  onedriveStatus: SyncStatus;
-  notionStatus: SyncStatus;
-  onedrivePath: string | null;
-  notionPageId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -54,11 +48,7 @@ export type TodoItem = {
   updatedAt: string;
 };
 
-export type QueueJobType =
-  | 'process_note'
-  | 'sync_onedrive'
-  | 'sync_notion'
-  | 'sync_todos';
+export type QueueJobType = 'process_note';
 
 export type QueueJobStatus = 'pending' | 'running' | 'done' | 'failed';
 
@@ -81,10 +71,6 @@ export type AppSettings = {
   useSeparateLlm: boolean;
   llmApiBaseUrl: string;
   llmApiKey: string;
-  azureClientId: string;
-  azureTenantId: string;
-  notionToken: string;
-  notionParentPageId: string;
 };
 
 export type ResolvedAiConfig = {
