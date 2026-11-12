@@ -145,13 +145,20 @@ export function confirmLargeTranscription(
   if (!est || !est.needsConfirm) return Promise.resolve(true);
   const count = opts?.count ?? 1;
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
     Alert.alert(
       count > 1 ? 'Transcribe large recordings?' : 'Transcribe large recording?',
       confirmMessage(est, count),
       [
-        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-        { text: 'Proceed', onPress: () => resolve(true) },
+        { text: 'Cancel', style: 'cancel', onPress: () => finish(false) },
+        { text: 'Proceed', onPress: () => finish(true) },
       ],
+      { cancelable: true, onDismiss: () => finish(false) },
     );
   });
 }
