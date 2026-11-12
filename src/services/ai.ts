@@ -111,6 +111,7 @@ async function transcribeOneFile(
       });
       if (result.status < 200 || result.status >= 300) {
         const errBody = result.body.slice(0, 280);
+        // Caller maps OpenRouter 400 “25 MB multipart” via isSttPayloadTooLargeError.
         throw new Error(`STT failed (${result.status}): ${errBody}`);
       }
       try {

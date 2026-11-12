@@ -197,6 +197,15 @@ export async function shareVaultReadme(): Promise<void> {
   });
 }
 
+function mimeForAudioName(fileName: string): string {
+  const ext = (fileName.split('.').pop() || '').toLowerCase();
+  if (ext === 'wav') return 'audio/wav';
+  if (ext === 'mp3' || ext === 'mpeg' || ext === 'mpga') return 'audio/mpeg';
+  if (ext === 'aac') return 'audio/aac';
+  if (ext === 'mp4') return 'audio/mp4';
+  return 'audio/mp4';
+}
+
 /** Share a single note's Markdown via the system share sheet. */
 export async function shareNoteMarkdown(noteId: string): Promise<void> {
   const notes = await listNotes();
@@ -215,6 +224,50 @@ export async function shareNoteMarkdown(noteId: string): Promise<void> {
   await Sharing.shareAsync(file.uri, {
     mimeType: 'text/markdown',
     dialogTitle: 'Share note Markdown',
+    UTI: 'public.plain-text',
+  });
+}
+
+/**
+ * Share / save the note’s on-disk recording via the system share sheet.
+ * Does not delete or move the original — copy stays on device.
+ */
+export async function shareNoteAudio(noteId: string): Promise<void> {
+  const notes = await listNotes();
+  const note = notes.find((n) => n.id === noteId);
+  if (!note) throw new Error('Note not found');
+  if (!note.audioPath) throw new Error('This note has no audio file to share.');
+  const src = new File(note.audioPath);
+  if (!src.exists) throw new Error('Audio file is missing on device.');
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error('Sharing is not available on this device.');
+  }
+  const leaf = src.name || `${note.id}.m4a`;
+  await Sharing.shareAsync(src.uri, {
+    mimeType: mimeForAudioName(leaf),
+    dialogTitle: 'Share / Save audio',
+    UTI: 'public.mpeg-4',
+  });
+}
+
+/** Share transcript text as a .txt file when a transcript exists. */
+export async function shareNoteTranscript(noteId: string): Promise<void> {
+  const notes = await listNotes();
+  const note = notes.find((n) => n.id === noteId);
+  if (!note) throw new Error('Note not found');
+  const text = note.transcript?.trim();
+  if (!text) throw new Error('No transcript to share yet.');
+  const dir = new Directory(Paths.cache, 'share');
+  if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
+  const day = note.createdAt.slice(0, 10);
+  const file = new File(dir, `${day}-transcript-${note.id.slice(-6)}.txt`);
+  file.write(text);
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error('Sharing is not available on this device.');
+  }
+  await Sharing.shareAsync(file.uri, {
+    mimeType: 'text/plain',
+    dialogTitle: 'Share transcript',
     UTI: 'public.plain-text',
   });
 }

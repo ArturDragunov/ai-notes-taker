@@ -14,8 +14,16 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { parseActionItems } from '@/services/markdown';
 import { deleteNote, getNote, getNoteEpics } from '@/services/notes';
-import { shareNoteMarkdown } from '@/services/exportVault';
+import {
+  shareNoteAudio,
+  shareNoteMarkdown,
+  shareNoteTranscript,
+} from '@/services/exportVault';
 import { pumpQueue, retryTranscribeNote } from '@/services/pipeline';
+import {
+  confirmLargeTranscription,
+  estimateNoteStt,
+} from '@/services/sttEstimate';
 import {
   countTodosForNote,
   importActionItemsFromNote,
@@ -81,10 +89,15 @@ export default function NoteScreen() {
   }, [note, draftSeedKey]);
 
   async function onRetry() {
-    if (!id) return;
+    if (!id || !note) return;
     try {
       setBusy(true);
       setMessage(null);
+      const est = await estimateNoteStt(note.audioPath, note.durationMs);
+      if (!(await confirmLargeTranscription(est))) {
+        setBusy(false);
+        return;
+      }
       await retryTranscribeNote(id);
       setMessage(null);
       await load();
@@ -100,6 +113,32 @@ export default function NoteScreen() {
     try {
       setBusy(true);
       await shareNoteMarkdown(id);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onShareAudio() {
+    if (!id) return;
+    try {
+      setBusy(true);
+      setMessage(null);
+      await shareNoteAudio(id);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onShareTranscript() {
+    if (!id) return;
+    try {
+      setBusy(true);
+      setMessage(null);
+      await shareNoteTranscript(id);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : String(err));
     } finally {
@@ -247,13 +286,35 @@ export default function NoteScreen() {
       {isError ? (
         <View style={styles.errorBanner}>
           <Text style={styles.bannerText}>
-            Something went wrong. Fix Settings if needed, then retry.
+            Something went wrong. Fix Settings if needed, then retry. Your
+            recording stays on device — share/save it below if you want a copy first.
           </Text>
           <PrimaryButton
             label="Retry / Transcribe"
             loading={busy}
             onPress={() => void onRetry()}
           />
+        </View>
+      ) : null}
+
+      {note.audioPath ? (
+        <View style={styles.shareRow}>
+          <PrimaryButton
+            label="Share / Save audio"
+            variant="ghost"
+            loading={busy}
+            onPress={() => void onShareAudio()}
+            style={{ flex: 1 }}
+          />
+          {note.transcript?.trim() ? (
+            <PrimaryButton
+              label="Share transcript"
+              variant="ghost"
+              loading={busy}
+              onPress={() => void onShareTranscript()}
+              style={{ flex: 1 }}
+            />
+          ) : null}
         </View>
       ) : null}
 
@@ -399,6 +460,12 @@ const baseStyles = StyleSheet.create({
     fontFamily: fonts.body,
     color: colors.ink,
     lineHeight: 21,
+  },
+  shareRow: {
+    marginTop: 14,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   review: {
     marginTop: 20,
