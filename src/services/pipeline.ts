@@ -12,6 +12,8 @@ import { enqueueJob, listPendingJobs, markJob } from '@/services/queue';
 let pumping = false;
 
 export async function enqueueNoteProcessing(noteId: string): Promise<void> {
+  // Mark queued before the job runs so note detail can show calm progress
+  // immediately after the large-file confirm dialog.
   await updateNoteFields(noteId, {
     status: 'queued',
     processError: null,

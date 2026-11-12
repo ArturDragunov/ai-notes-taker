@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   StyleSheet,
@@ -35,12 +36,21 @@ import { useAutoScaledStyles } from '@/theme/UiScaleContext';
 
 type DraftAction = { id: string; text: string; selected: boolean };
 
-function stepLabel(note: Note): string {
+function stepLabel(note: Note, optimisticWorking: boolean): string {
   if (note.processStep === 'transcribing') return 'Transcribing…';
-  if (note.processStep === 'summarizing') return 'Writing summary…';
-  if (note.status === 'queued') return 'Queued…';
+  if (note.processStep === 'summarizing') return 'Structuring…';
+  if (note.status === 'queued' || optimisticWorking) return 'Starting…';
   if (note.status === 'processing') return 'Working…';
   return '';
+}
+
+/** Let the native Alert finish dismissing before heavy work / follow-up paints. */
+function afterAlertDismiss(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      setTimeout(resolve, 32);
+    });
+  });
 }
 
 export default function NoteScreen() {
@@ -49,6 +59,10 @@ export default function NoteScreen() {
   const [note, setNote] = useState<Note | null>(null);
   const [epics, setEpics] = useState<Epic[]>([]);
   const [busy, setBusy] = useState(false);
+  /** Keeps calm progress visible from Proceed until DB status catches up. */
+  const [optimisticWorking, setOptimisticWorking] = useState(false);
+  /** True only after enqueue succeeds — avoids poll clearing progress on stale error. */
+  const enqueuedRef = useRef(false);
   const [message, setMessage] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftAction[]>([]);
   const [todosFromNote, setTodosFromNote] = useState(0);
@@ -58,6 +72,20 @@ export default function NoteScreen() {
     if (!id) return;
     const next = await getNote(id);
     setNote(next);
+    if (next && enqueuedRef.current) {
+      if (
+        next.status === 'queued' ||
+        next.status === 'processing' ||
+        next.status === 'ready' ||
+        next.status === 'error'
+      ) {
+        // Hand off to real status (or terminal) once the job is in the DB.
+        setOptimisticWorking(false);
+        if (next.status === 'ready' || next.status === 'error') {
+          enqueuedRef.current = false;
+        }
+      }
+    }
     setEpics(await getNoteEpics(id));
     setTodosFromNote(await countTodosForNote(id));
     void pumpQueue();
@@ -98,11 +126,31 @@ export default function NoteScreen() {
         setBusy(false);
         return;
       }
+      // Alert dismiss can delay the next paint on Android — flip to progress
+      // immediately, then start the job after interactions settle.
+      enqueuedRef.current = false;
+      setOptimisticWorking(true);
+      setNote((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: 'queued',
+              processError: null,
+              processStep: null,
+            }
+          : prev,
+      );
+      setBusy(false);
+      await afterAlertDismiss();
       await retryTranscribeNote(id);
+      enqueuedRef.current = true;
       setMessage(null);
       await load();
     } catch (err) {
+      enqueuedRef.current = false;
+      setOptimisticWorking(false);
       setMessage(err instanceof Error ? err.message : String(err));
+      await load();
     } finally {
       setBusy(false);
     }
@@ -240,9 +288,12 @@ export default function NoteScreen() {
     );
   }
 
-  const inFlight = note.status === 'queued' || note.status === 'processing';
-  const isError = note.status === 'error';
-  const isReady = note.status === 'ready';
+  const inFlight =
+    optimisticWorking ||
+    note.status === 'queued' ||
+    note.status === 'processing';
+  const isError = !inFlight && note.status === 'error';
+  const isReady = !inFlight && note.status === 'ready';
 
   return (
     <Screen scroll>
@@ -251,7 +302,7 @@ export default function NoteScreen() {
         {isReady && note.audioPath ? (
           <Pressable
             hitSlop={8}
-            disabled={busy}
+            disabled={busy || inFlight}
             onPress={() => void onRetry()}
             style={styles.retranscribe}
           >
@@ -264,7 +315,10 @@ export default function NoteScreen() {
       {inFlight ? (
         <>
           <Text style={styles.title}>Working on your note…</Text>
-          <Text style={styles.step}>{stepLabel(note)}</Text>
+          <View style={styles.progressRow}>
+            <ActivityIndicator color={colors.brand} />
+            <Text style={styles.step}>{stepLabel(note, optimisticWorking)}</Text>
+          </View>
           <Text style={styles.meta}>
             {epics.map((e) => e.name).join(', ') || 'Epics pending'}
           </Text>
@@ -427,8 +481,13 @@ const baseStyles = StyleSheet.create({
     fontSize: 28,
     color: colors.ink,
   },
+  progressRow: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   step: {
-    marginTop: 10,
     fontFamily: fonts.bodyMed,
     color: colors.brand,
     fontSize: 16,
