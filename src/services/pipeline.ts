@@ -152,6 +152,7 @@ async function processNote(noteId: string): Promise<void> {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    // Keep audioPath / on-disk recording intact — never delete on STT/LLM failure.
     await updateNoteFields(noteId, {
       status: 'error',
       processError: message,

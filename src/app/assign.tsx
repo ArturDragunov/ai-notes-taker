@@ -12,8 +12,12 @@ import { BrandMark } from '@/components/BrandMark';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { Screen } from '@/components/Screen';
 import { createEpic, listEpics } from '@/services/epics';
-import { assignNoteEpics } from '@/services/notes';
+import { assignNoteEpics, getNote } from '@/services/notes';
 import { enqueueNoteProcessing } from '@/services/pipeline';
+import {
+  confirmLargeTranscription,
+  estimateNotesStt,
+} from '@/services/sttEstimate';
 import type { Epic } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
@@ -80,6 +84,16 @@ export default function AssignScreen() {
     try {
       setBusy(true);
       setError(null);
+      const notes = [];
+      for (const id of targets) {
+        const note = await getNote(id);
+        if (note) notes.push(note);
+      }
+      const est = await estimateNotesStt(notes);
+      if (!(await confirmLargeTranscription(est, { count: notes.length }))) {
+        setBusy(false);
+        return;
+      }
       for (const id of targets) {
         await assignNoteEpics(id, selected);
         await enqueueNoteProcessing(id);

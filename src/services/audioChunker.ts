@@ -1,9 +1,12 @@
 import { Directory, File, Paths } from 'expo-file-system';
 
-/** Soft ceiling under OpenRouter/OpenAI ~50MB STT upload limit. */
-export const STT_SOFT_LIMIT_BYTES = 45 * 1024 * 1024;
-/** Target payload size per STT chunk (leave headroom for multipart overhead). */
-export const STT_CHUNK_TARGET_BYTES = 40 * 1024 * 1024;
+/**
+ * Soft ceiling under OpenRouter’s ~25MB multipart STT upload limit.
+ * Chunk earlier than 25MB so single-file uploads stay safely under the hard cap.
+ */
+export const STT_SOFT_LIMIT_BYTES = 20 * 1024 * 1024;
+/** Target payload size per STT chunk (headroom for multipart overhead under 25MB). */
+export const STT_CHUNK_TARGET_BYTES = 18 * 1024 * 1024;
 /** ~2s of audio overlap between adjacent chunks (bitrate-estimated). */
 const OVERLAP_SECONDS = 2;
 const STT_PARALLELISM = 3;
@@ -459,8 +462,9 @@ function splitMp3(buf: Uint8Array, targetBytes: number, overlapSeconds: number):
 }
 
 /**
- * Plan STT uploads: single file when under soft limit, otherwise format-aware chunks.
- * `force` splits even under the limit (used after an STT 413).
+ * Plan STT uploads: single file when under soft limit, otherwise format-aware
+ * binary chunks (never base64 — that inflates payload size).
+ * `force` splits even under the limit (used after STT 413 / 25MB multipart 400).
  */
 export async function planAudioChunks(
   audioUri: string,
@@ -529,10 +533,16 @@ export function isSttPayloadTooLargeError(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err);
   return (
     /\b413\b/.test(message) ||
+    // OpenRouter often returns HTTP 400 with this wording instead of 413.
+    (/\b400\b/.test(message) && /25\s*MB/i.test(message)) ||
+    /25\s*MB.*multipart/i.test(message) ||
+    /multipart upload limit/i.test(message) ||
+    /audio file exceeds/i.test(message) ||
     /request entity too large/i.test(message) ||
     /maximum.*size/i.test(message) ||
     /file.*too large/i.test(message) ||
-    /payload.*too large/i.test(message)
+    /payload.*too large/i.test(message) ||
+    /exceeds the .*upload limit/i.test(message)
   );
 }
 

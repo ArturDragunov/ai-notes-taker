@@ -19,6 +19,10 @@ import {
   retryAllPendingOrError,
   retryTranscribeNotes,
 } from '@/services/pipeline';
+import {
+  confirmLargeTranscription,
+  estimateNotesStt,
+} from '@/services/sttEstimate';
 import type { Epic, Note } from '@/lib/types';
 import { colors } from '@/theme/colors';
 import { fonts } from '@/theme/typography';
@@ -55,6 +59,12 @@ export default function LibraryScreen() {
     try {
       setBusy(true);
       setMessage(null);
+      const targets = notes.filter((n) => selected.includes(n.id) && n.audioPath);
+      const est = await estimateNotesStt(targets);
+      if (!(await confirmLargeTranscription(est, { count: targets.length }))) {
+        setBusy(false);
+        return;
+      }
       const n = await retryTranscribeNotes(selected);
       setMessage(`Queued ${n} note(s) for transcription.`);
       setSelectMode(false);
@@ -103,6 +113,16 @@ export default function LibraryScreen() {
     try {
       setBusy(true);
       setMessage(null);
+      const targets = notes.filter(
+        (n) =>
+          n.audioPath &&
+          (n.status === 'queued' || n.status === 'error' || n.status === 'processing'),
+      );
+      const est = await estimateNotesStt(targets);
+      if (!(await confirmLargeTranscription(est, { count: targets.length }))) {
+        setBusy(false);
+        return;
+      }
       const n = await retryAllPendingOrError();
       setMessage(
         n
